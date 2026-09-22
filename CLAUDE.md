@@ -214,49 +214,83 @@ Regel bei Cloud-/API-Treibern, „keine eigene Anlage als Norm" (Prüffrage bei 
 Formularfeld: gilt das für JEDEN Nutzer?), Hilfsordner im Repo-Wurzelverzeichnis mit
 führendem Punkt (Store-Fallstrick), globale Klassennamen mit Modul-Präfix (`DVHUB_…`).
 
-## Netztransparenz-Anbindung (`libs/NetztransparenzClient.php`, gebaut 22.09.2026)
+## Netztransparenz-Anbindung (`libs/NetztransparenzClient.php`, gebaut 22.09.2026,
+korrigiert 22.09.2026 nach Live-Verifikation)
 
-Netztransparenz.de bietet tatsächlich eine echte WebAPI (Dietmars Vermutung bestätigt),
-nicht nur CSV-Downloads: Basis-URL `https://ds.netztransparenz.de/api/v1/data`, OAuth
-2.0 Client-Credentials-Flow (Token-Endpunkt
-`https://identity.netztransparenz.de/users/connect/token`, Token 1 h gültig). Quelle:
-offizielle "Dokumentation WebAPI Netztransparenz" (Version 07.02.2025, PDF).
+Netztransparenz.de bietet tatsächlich eine echte WebAPI, nicht nur CSV-Downloads:
+Basis-URL `https://ds.netztransparenz.de/api/v1/data`, OAuth 2.0 Client-Credentials-Flow
+(Token-Endpunkt `https://identity.netztransparenz.de/users/connect/token`, Token 1 h
+gültig).
 
-**Zugangsdaten (Client_ID/Client_Secret) müssen von Dietmar selbst über den "OAuth
-Manager" im Extranet von Netztransparenz.de beantragt werden — das kann ich nicht
-automatisiert tun.** Ohne diese Zugangsdaten ist der Client zwar fertig und getestet,
-aber nicht live nutzbar.
+**Wichtige Korrektur gegenüber der ersten Fassung:** Die erste Version dieses Clients
+folgte der PDF-Doku (Version 07.02.2025) und baute `dateFrom`/`dateTo` als
+Query-Parameter. Live gegen die öffentliche Swagger-UI geprüft
+(https://api-portal.netztransparenz.de/public-swagger-ui, kein Login nötig, 22.09.2026):
+**das war falsch — es sind Pfadsegmente**, exakt wie es auch Szenariorechners
+KONZEPT.md für die Endpunkt-Familie `marktpraemie` schon live festgestellt hatte (die
+PDF-Doku kann hinter der Live-API zurückliegen). Korrekte Pfade:
+- `GET /api/v1/data/NegativePreise/{logic}/{dateFrom}/{dateTo}` — historische
+  Regelvariante `logic` explizit wählen. **Gültige Werte laut Swagger:
+  1, 2, 3, 4, 6, 15** (mehr als angenommen — nicht nur 1/3/4/6, auch 2 und 15).
+- `GET /api/v1/data/NegativePreise/{dateFrom}/{dateTo}` — **ohne** `logic`,
+  "entitlement to remuneration according to the **hourly claim bases**". Das ist die
+  richtige Wahl für DVHubs laufende Live-Klassifikation: die API wendet selbst die zum
+  abgefragten Zeitpunkt aktuell gültige Regel an. **DVHub muss deshalb für den
+  Live-Betrieb KEINE EEG-Fassung-zu-`logic`-Zuordnung kennen oder pflegen** — die
+  ursprünglich geplante `VERMUTETE_FASSUNG_ZU_STUNDEN`-Tabelle entfällt dadurch.
 
-Endpunkt für unseren Zweck: `GET api/v1/data/NegativePreise/<1|3|4|6>` (Datum-Bereich
-über `dateFrom`/`dateTo`), Antwort CSV `Datum;Negativ` mit Ja/Nein je Stunde. Die vier
-Zahlen entsprechen vier verschiedenen gesetzlichen Regelvarianten
-("Negative Stunden (6H)/(4H)/(3H)/(1H)", aus dem API-eigenen Antwortformat 12
-abgeleitet) — **welche Zahl zu welcher EEG-Fassung gehört, ist bei mir nur eine aus dem
-Kontext plausible Vermutung** (`DVHUB_NetztransparenzClient::VERMUTETE_FASSUNG_ZU_STUNDEN`,
-im Code klar als ungeprüft markiert) — **vor produktivem Einsatz gegen den tatsächlichen
-Gesetzestext/eine amtliche Quelle verifizieren, nicht ungeprüft übernehmen.**
+**Wo die `logic`-Variante trotzdem noch gebraucht wird:** für eine RÜCKWIRKENDE
+Auswertung über mehrere Jahre (z. B. Szenariorechners Förderende-/Solarspitzengesetz-
+Szenario), weil sich die Regel über die Zeit mehrfach geändert hat und für einen
+vergangenen Zeitpunkt die DAMALS gültige Variante gelten muss, nicht die heutige. Das
+ist NICHT DVHubs Aufgabe (DVHub klassifiziert laufend, nicht rückwirkend über Jahre) —
+falls DVHub doch einmal historisch nachrechnen soll, bräuchte es diese Zuordnung dann
+wirklich.
+
+**Rechtliche Zuordnung Fassung -> `logic`-Zahl für historische Zeiträume: weiterhin
+NICHT verifiziert** (Dietmars Auftrag 22.09.2026, noch offen). Grober Anhaltspunkt aus
+dem Kontext (Anzahl der Regelvarianten passt zur bekannten Historie mehrfacher
+Verschärfungen: ehemals 6 aufeinanderfolgende Stunden -> 4 -> 3 -> seit 1.10.2025
+kalenderstundenscharf), aber ohne Abgleich mit dem tatsächlichen Gesetzestext nicht
+belastbar — falls je gebraucht (s. o.), vor Verwendung recherchieren, nicht raten.
+
+**Zugangsdaten sind bereits vorhanden — aber nicht hier.** Dietmar hat bereits einen
+Netztransparenz-Zugang; Client_ID/Client_Secret liegen schon in der
+**Szenariorechner**-Instanz (`Szenariorechner/module.php`,
+`NetztransparenzClientId`/`NetztransparenzClientSecret`-Attribute, nach demselben
+Handshake-Muster wie MeterHubs Inexogy-Anbindung: `RegisterAttributeString`, nicht
+Property). Szenariorechner hat Token-Handling und einen generischen CSV-Fetch bereits
+gebaut (`getNetztransparenzToken()`/`fetchNetztransparenzCsv()`), aber noch KEINEN
+Aufruf des `NegativePreise`-Endpunkts selbst implementiert — das war bislang für
+Szenariorechner auch noch nicht nötig (Phase 4, "noch nicht gebaut" laut dessen
+KONZEPT.md).
+
+**Offene Architekturfrage an Dietmar (noch nicht entschieden):** Drei Module hätten
+potenziell denselben Bedarf (Netztransparenz-Zugriff, insbesondere `NegativePreise`)
+— DVHub, Szenariorechner, und vermutlich künftig EMS (das laut Memory
+`ems-anlagenstammdaten-konzept` ohnehin die führende Quelle für `eegFassung`/Pflichten
+werden soll). Drei unabhängige Clients mit eigenen Zugangsdaten/Token-Caches wären eine
+unnötige Verdopplung. Sollte das ein eigenständiger, gemeinsam genutzter Baustein
+werden (eigenes kleines Modul/Repo), den alle drei konsumieren? Das kann ich nicht
+alleine entscheiden — betrifft fremde Repos.
 
 `DVHUB_NetztransparenzClient`: IPS-freier Kern, HTTP-Aufrufe über injizierte Callables
 (kein echtes Netzwerk in Tests) — `getAccessToken()` (cacht bis kurz vor Ablauf),
-`fetchNegativePreise()`, `parseNegativePreiseCsv()` (statisch, reiner Parser). Getestet
-in `.tests/netztransparenz_test.php` (13 Prüfungen, gemockter HTTP-Layer, kein Bezug zu
-echten Zugangsdaten nötig).
+`fetchNegativePreise($logic, ...)` (historisch), `fetchCurrentNegativePreise(...)`
+(live, empfohlen für DVHub), `parseNegativePreiseCsv()` (statisch, reiner Parser).
+Getestet in `.tests/netztransparenz_test.php` (21 Prüfungen, gemockter HTTP-Layer).
 
 **Anbindung an `DVHUB_Calc::classifyReason()`:** bereits vorbereitet — die Funktion
 nimmt schon einen einfachen `bool $isNegativePriceHour` entgegen, den
-`fetchNegativePreise()` liefert (Lookup nach Stunden-Schlüssel). Kein Änderungsbedarf
-an `DVHUB_Calc` selbst.
+`fetchCurrentNegativePreise()` liefert (Lookup nach Stunden-Schlüssel). Kein
+Änderungsbedarf an `DVHUB_Calc` selbst.
 
 **Noch offen:**
-- Platzierung: eigenständige Bibliothek hier im DVHub-Repo (aktueller Stand) oder
-  Erweiterung von NRGBoersenpreis/SPOT (das Modul verarbeitet ohnehin schon
-  Day-Ahead-Preise)? Ist nicht solarpark-spezifisch, würde also auch anderen
-  EEG-Anlagen außerhalb von DVHub nützen. Mit Dietmar noch nicht entschieden.
-- Fassung-zu-Stundenzahl-Zuordnung gegen den echten Gesetzestext verifizieren (siehe oben).
-- Zugangsdaten-Beschaffung durch Dietmar (OAuth Manager im Extranet).
-- IPS-Wrapper (Zugangsdaten-Handshake-Muster wie bei MeterHubs Inexogy-Anbindung:
-  `RegisterAttributeString`, nicht Property; HTTP über `Sys_GetURLContentEx`/curl in
-  echtem IPS statt der Test-Callables), Einbau in `RunCycle()`.
+- Architekturfrage oben (gemeinsamer Baustein vs. drei eigene Clients).
+- Zugangsdaten: entweder eigene für DVHub beantragen, oder Weg finden, die
+  Szenariorechner-Instanz mitzunutzen (Cross-Modul-Vertrag, noch nicht existent).
+- IPS-Wrapper (HTTP über `Sys_GetURLContentEx`/curl in echtem IPS statt der
+  Test-Callables), Einbau in `RunCycle()`.
 
 ## Nächste Schritte (Stand 22.09.2026, noch offen)
 

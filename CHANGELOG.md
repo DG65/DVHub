@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.1 (22.09.2026)
+
+- Korrektur nach Live-Verifikation gegen die öffentliche Swagger-UI: `NegativePreise`-
+  Endpunkt nutzt Pfadsegmente (`/NegativePreise/{logic}/{dateFrom}/{dateTo}`), nicht
+  Query-Parameter wie in der PDF-Doku beschrieben. Gültige `logic`-Werte laut Swagger:
+  1, 2, 3, 4, 6, 15 (mehr als angenommen).
+- Neu: `fetchCurrentNegativePreise()` (ohne `logic`-Parameter, "hourly claim bases") —
+  die richtige Wahl für DVHubs laufende Live-Klassifikation. Entfällt dadurch: die
+  ursprünglich geplante Fassung-zu-Stundenzahl-Zuordnungstabelle wird für den
+  Live-Betrieb nicht gebraucht.
+- Fund: Szenariorechner hat bereits Netztransparenz-Zugangsdaten UND Token-/CSV-
+  Infrastruktur, aber noch keinen `NegativePreise`-Aufruf. Offene Architekturfrage an
+  Dietmar: gemeinsamer Baustein für DVHub/Szenariorechner/künftig EMS statt drei
+  eigener Clients?
+- 21 Stub-Tests (`.tests/netztransparenz_test.php`), alle grün.
+
 ## 0.4.0 (22.09.2026)
 
 - `libs/NetztransparenzClient.php`: Client für die echte Netztransparenz.de-WebAPI

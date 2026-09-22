@@ -51,18 +51,40 @@ check('getAccessToken cacht das Token innerhalb der Gültigkeit (kein zweiter PO
 $client->getAccessToken(1000 + 3600 + 1); // nach Ablauf
 check('getAccessToken holt nach Ablauf ein neues Token', count($postCalls), 2);
 
-// --- fetchNegativePreise ---
+// --- fetchNegativePreise: URL als Pfadsegmente (Swagger-UI-verifiziert, 22.09.2026 -
+// NICHT die Query-Parameter-Form aus der veralteten PDF-Doku) ---
 $result = $client->fetchNegativePreise(4, new DateTimeImmutable('2024-01-15T00:00:00'), new DateTimeImmutable('2024-01-16T00:00:00'));
 check('fetchNegativePreise liefert das geparste Ergebnis', $result, ['2024-01-15 03:00' => true, '2024-01-15 04:00' => false]);
-check('fetchNegativePreise ruft den richtigen Endpunkt auf (4h-Variante)', str_contains(end($getCalls)[0], '/NegativePreise/4'), true);
+check(
+    'fetchNegativePreise baut die URL als Pfadsegmente logic/dateFrom/dateTo, kein Query-String',
+    end($getCalls)[0],
+    'https://ds.netztransparenz.de/api/v1/data/NegativePreise/4/2024-01-15T00%3A00%3A00/2024-01-16T00%3A00%3A00'
+);
 check('fetchNegativePreise übergibt den Bearer-Token', end($getCalls)[1][0], 'Authorization: Bearer TOKEN-1');
 
+foreach (DVHUB_NetztransparenzClient::GUELTIGE_LOGIC_WERTE as $logic) {
+    try {
+        $client->fetchNegativePreise($logic, new DateTimeImmutable(), new DateTimeImmutable());
+        check("fetchNegativePreise akzeptiert gültige Regelvariante $logic", true, true);
+    } catch (\InvalidArgumentException $e) {
+        check("fetchNegativePreise akzeptiert gültige Regelvariante $logic", false, true);
+    }
+}
 try {
-    $client->fetchNegativePreise(2, new DateTimeImmutable(), new DateTimeImmutable());
+    $client->fetchNegativePreise(5, new DateTimeImmutable(), new DateTimeImmutable());
     check('fetchNegativePreise lehnt unbekannte Regelvariante ab', 'keine Ausnahme', 'InvalidArgumentException');
 } catch (\InvalidArgumentException $e) {
     check('fetchNegativePreise lehnt unbekannte Regelvariante ab', 'InvalidArgumentException', 'InvalidArgumentException');
 }
+
+// --- fetchCurrentNegativePreise: kein logic-Parameter, für die laufende Live-Klassifikation ---
+$currentResult = $client->fetchCurrentNegativePreise(new DateTimeImmutable('2024-01-15T00:00:00'), new DateTimeImmutable('2024-01-16T00:00:00'));
+check('fetchCurrentNegativePreise liefert das geparste Ergebnis', $currentResult, ['2024-01-15 03:00' => true, '2024-01-15 04:00' => false]);
+check(
+    'fetchCurrentNegativePreise baut die URL ohne logic-Segment',
+    end($getCalls)[0],
+    'https://ds.netztransparenz.de/api/v1/data/NegativePreise/2024-01-15T00%3A00%3A00/2024-01-16T00%3A00%3A00'
+);
 
 // --- Fehlerfall: Token-Endpunkt antwortet nicht mit 200 ---
 $failPost = fn($url, $fields) => ['status' => 401, 'body' => 'Unauthorized'];
