@@ -1,0 +1,12 @@
+{
+  "id": "{7A6C2E1D-4F3B-4A8E-9C5D-2B8F1E6A7D34}",
+  "author": "DG65",
+  "name": "NRG-Stack DVHub",
+  "url": "https://github.com/DG65/DVHub",
+  "compatibility": {
+    "version": "9.0"
+  },
+  "version": "0.1.0",
+  "build": 1,
+  "date": 1790102400
+}
