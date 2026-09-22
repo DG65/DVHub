@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0 (22.09.2026)
+
+- Archiv: `AT_<id>_Watts`/`AT_<id>_Grund` werden jetzt über den IPS-Kerndienst Archive
+  Control historisch geloggt (`AC_SetLoggingStatus()`), bewusst nur einmalig aktiviert
+  (`ArchivingSetupDone`-Attribut) — respektiert ein späteres manuelles Ausschalten durch
+  den Nutzer, statt es bei jedem `ApplyChanges()` zu überstimmen (Bug beim Schreiben des
+  Tests selbst gefunden und behoben, bevor er live etwas kaputt gemacht hätte).
+  `NAP_<id>_Setpoint` bewusst ohne Archiv (reine Regelgröße).
+- 22 Tests in `.tests/hub_test.php` (vorher 17), alle grün.
+- Noch nicht enthalten: der Abrechnungsreport selbst (Auswertung der archivierten
+  Werte) — das Archiv liefert nur die Rohdaten.
+
 ## 0.6.0 (22.09.2026)
 
 - `RunCycle()` ruft jetzt `NTP_IsNegativePriceHour()` (aus `DG65/NRGNetztransparenz`,

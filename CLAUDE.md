@@ -248,13 +248,14 @@ Live-Momentaufnahme, keine Zeitreihe.
 
 ## Nächste Schritte (Stand 22.09.2026, noch offen)
 
-1. Archiv/Abrechnungsreport: den je Durchlauf berechneten Grund (`AT_<id>_Grund`)
-   historisch wegschreiben (z. B. IPS-Archivdienst je Variable), plus ein Report, der
-   das je Anlagenteil/Betreiber auswertet (Abschnitt 3.7/3.8 des Neubau-Konzepts).
+1. Abrechnungsreport: die jetzt archivierten `AT_<id>_Watts`/`_Grund`-Werte je
+   Anlagenteil/Betreiber auswerten (Abschnitt 3.8 des Neubau-Konzepts) — das Archiv
+   selbst ist fertig (siehe eigener Abschnitt oben), nur die Auswertung fehlt noch.
 2. Fail-safe-Timeout-Logik im Rechenkern (über den Sofort-Fallback der Treiber/des Hubs
    hinaus, siehe Abschnitt 3.4 des Neubau-Konzepts: kein Einfrieren, kein Sprung).
 3. VCOM-API als optionale Fallback-Quelle für `GetAvailablePower()` — Zugang/Doku noch
    nicht vorhanden.
+4. Live-Modulverwaltungs-Update an der Solarpark-Testinstanz (siehe Hinweis oben).
 5. Live-Test an der Solarpark-Installation: Treiber-Instanzen anlegen, mit den echten
    blue'Log-/Next-Variablen verknüpfen, `UpdateInterval` bewusst weiterhin auf 0 lassen,
    bis ein manueller Probelauf (Button) die Ergebnisse bestätigt hat.
@@ -294,3 +295,32 @@ Verfügbarkeitsquelle existiert (Pyranometer/Einstrahlungssensoren-Berechnung, s
 Neubau-Konzept 3.6, oder eine vollständigere blue'Log-Quelle), sollte sie diese
 Interimslösung ersetzen — vor allem, bevor `DryRun` für einen echten Betrieb
 ausgeschaltet wird.
+
+**Hinweis für die nächste Sitzung an dieser Installation:** Seit dem Archiv-Ausbau
+(siehe unten) muss die dortige `DVHub`-Instanz einmal über die Modulverwaltung
+aktualisiert werden, damit `AT_<id>_Watts`/`_Grund` dort archiviert werden — Update
+nach Push ist verbundweit bewusst manuell (siehe `nrg-stack-modul-update-mechanismus`-
+Memory), kein automatischer Trigger von hier aus.
+
+## Archiv (`registerVariables()`/`ensureArchiving()`, gebaut 22.09.2026)
+
+Kein eigenes Speicherformat — nutzt den IPS-Kerndienst Archive Control
+(`AC_SetLoggingStatus()`), genau wie es die übrigen NRG-Stack-Module für historische
+Daten tun (siehe MeterHub-CLAUDE.md, `AC_GetLoggedValues`/`AC_GetAggregatedValues`).
+Aktiviert für `AT_<id>_Watts` und `AT_<id>_Grund` (Grundlage für Abschnitt 3.7/3.8 des
+Neubau-Konzepts: Abrechnung je Anlagenteil) — bewusst NICHT für `NAP_<id>_Setpoint`
+(reine Regelgröße, nicht abrechnungsrelevant).
+
+**Nur einmalig aktiviert, nie erzwungen** (`ArchivingSetupDone`-Attribut, Liste bereits
+behandelter Idents): Ein Nutzer, der die Archivierung später bewusst wieder ausschaltet
+(z. B. um Archivspeicher zu sparen), wird nicht bei jedem `ApplyChanges()` überstimmt —
+dieser Fall wurde erst beim Schreiben des Tests bemerkt (die ursprüngliche, naive
+Fassung von `ensureArchiving()` prüfte nur den AKTUELLEN Status vor dem Einschalten,
+was "noch nie aktiviert" nicht von "bewusst wieder ausgeschaltet" unterscheiden konnte
+— beides sieht von außen gleich aus). Getestet in `.tests/hub_test.php` (u. a.: Archiv
+an für Watts/Grund, aus für Setpoint, bleibt aus nach manuellem Ausschalten + erneutem
+`ApplyChanges()`).
+
+**Noch nicht enthalten:** der eigentliche Abrechnungsreport (Auswertung der archivierten
+Werte je Anlagenteil/Betreiber, Abschnitt 3.8 des Neubau-Konzepts) — das Archiv liefert
+nur die Rohdaten, wertet sie noch nicht aus.

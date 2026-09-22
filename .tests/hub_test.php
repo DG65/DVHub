@@ -20,6 +20,9 @@ $GLOBALS['maintained'] = []; // ident => value
 $GLOBALS['pruned'] = [];
 $GLOBALS['formUpdates'] = [];
 $GLOBALS['blueLogSetpoints'] = []; // instanceID => letzter geschriebener Wert
+$GLOBALS['identToId'] = []; // ident => zugeteilte (eindeutige) Variablen-ID, für AC_*-Stubs unten
+$GLOBALS['nextVarId'] = 1000;
+$GLOBALS['archived'] = []; // Variablen-ID => bool (AC_SetLoggingStatus)
 
 class IPSModule
 {
@@ -49,7 +52,16 @@ class IPSModule
             $GLOBALS['pruned'][] = $ident;
         }
     }
-    public function GetIDForIdent($ident) { return array_key_exists($ident, $GLOBALS['maintained']) ? 1 : 0; }
+    public function GetIDForIdent($ident)
+    {
+        if (!array_key_exists($ident, $GLOBALS['maintained'])) {
+            return 0;
+        }
+        if (!array_key_exists($ident, $GLOBALS['identToId'])) {
+            $GLOBALS['identToId'][$ident] = $GLOBALS['nextVarId']++;
+        }
+        return $GLOBALS['identToId'][$ident];
+    }
     public function SetValue($ident, $value) { $GLOBALS['maintained'][$ident] = $value; }
     public function UpdateFormField($field, $key, $value) { $GLOBALS['formUpdates'][] = [$field, $key, $value]; }
 }
@@ -69,6 +81,9 @@ function IPS_SetVariableProfileDigits($name, $digits) {}
 function IPS_SetVariableProfileText($name, $prefix, $suffix) {}
 function IPS_GetInstance($id) { return ['ModuleInfo' => ['ModuleID' => '{' . $GLOBALS['instances'][$id] . '}']]; }
 function IPS_GetModule($moduleID) { return ['Prefix' => trim($moduleID, '{}')]; }
+
+function AC_GetLoggingStatus($id) { return $GLOBALS['archived'][$id] ?? false; }
+function AC_SetLoggingStatus($id, $active) { $GLOBALS['archived'][$id] = $active; return true; }
 
 // Netztransparenz-Modul standardmäßig NICHT installiert (leere Instanzliste) -> isNegativePriceHour() fällt sicher auf false zurück.
 $GLOBALS['ntpInstances'] = [];
@@ -111,6 +126,22 @@ function t(string $label, bool $ok): void
 }
 
 t('registerVariables legt Anzeige-Variablen für NAPs und Anlagenteile (Watts+Grund) an', count($GLOBALS['maintained']) === 6);
+
+function archivedIdent(string $ident): bool
+{
+    $id = $GLOBALS['identToId'][$ident] ?? -1;
+    return $GLOBALS['archived'][$id] ?? false;
+}
+t('Archiv ist für AT_..._Watts aktiviert (Abrechnungsgrundlage)', archivedIdent('AT_SP_I_1_Watts'));
+t('Archiv ist für AT_..._Grund aktiviert (Abrechnungsgrundlage)', archivedIdent('AT_SP_I_1_Grund'));
+t('Archiv ist für NAP_..._Setpoint NICHT aktiviert (reine Regelgröße, nicht abrechnungsrelevant)', !archivedIdent('NAP_Hofweier_Setpoint'));
+
+// Wer die Archivierung manuell wieder ausgeschaltet hat, wird von einem erneuten
+// ApplyChanges() nicht überstimmt (ensureArchiving() schaltet nur EIN, nie AUS).
+$watts1Id = $GLOBALS['identToId']['AT_SP_I_1_Watts'];
+$GLOBALS['archived'][$watts1Id] = false;
+$hub->ApplyChanges();
+t('Manuell deaktiviertes Archiv wird bei ApplyChanges() nicht automatisch wieder eingeschaltet', !archivedIdent('AT_SP_I_1_Watts'));
 
 $summary = $hub->RunCycle();
 t('RunCycle liefert einen nichtleeren Bericht zurück', $summary !== '' && str_contains($summary, 'Hofweier'));

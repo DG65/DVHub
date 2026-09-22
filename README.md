@@ -27,22 +27,23 @@ Details und Vertragsdefinitionen: [CLAUDE.md](CLAUDE.md).
 
 ## Status
 
-Frühe Entwicklungsphase (0.6.0). Fertig und getestet: der Rechenkern
+Frühe Entwicklungsphase (0.7.0). Fertig und getestet: der Rechenkern
 (`libs/DVHubCalc.php`, `php .tests/calc_test.php`), die beiden ersten Treiber
 `DVHubDriverBlueLog`/`DVHubDriverNext` (`php .tests/driver_test.php`) und die
-DVHub-Hauptinstanz mit Stammdaten-Formular, Quotierungs-Durchlauf und Grund-
-Klassifikation je Anlagenteil (`php .tests/hub_test.php`). Der automatische Regeltakt
-ist standardmäßig deaktiviert, `DryRun` ebenso — ein Lauf muss zunächst manuell und
-ohne Schreibzugriff bestätigt werden. Live an der Solarpark-Hofweier-Installation
-verdrahtet und getestet (Testphase, weiterhin `DryRun=true`).
+DVHub-Hauptinstanz mit Stammdaten-Formular, Quotierungs-Durchlauf, Grund-
+Klassifikation und Archiv je Anlagenteil (`php .tests/hub_test.php`). Der automatische
+Regeltakt ist standardmäßig deaktiviert, `DryRun` ebenso — ein Lauf muss zunächst
+manuell und ohne Schreibzugriff bestätigt werden. Live an der Solarpark-Hofweier-
+Installation verdrahtet und getestet (Testphase, weiterhin `DryRun=true`).
 
 Die EEG-§51-Negativpreis-Erkennung selbst ist NICHT Teil dieses Repos — sie lebt als
 eigenständiges, verbundweites Modul in [DG65/NRGNetztransparenz](https://github.com/DG65/NRGNetztransparenz)
 (Grund: eine geteilte API-Ratenbegrenzung betrifft mehrere NRG-Stack-Module, nicht nur
 DVHub). `RunCycle()` konsumiert sie über `function_exists('NTP_IsNegativePriceHour')`.
 
-Noch nicht gebaut: historisches Wegschreiben des Grunds (Archiv/Abrechnungsreport),
-Fail-safe-Timeout-Logik über den Sofort-Fallback hinaus.
+Noch nicht gebaut: der eigentliche Abrechnungsreport (Auswertung der jetzt
+archivierten Werte je Anlagenteil/Betreiber), Fail-safe-Timeout-Logik über den
+Sofort-Fallback hinaus.
 
 ## Lizenz
 

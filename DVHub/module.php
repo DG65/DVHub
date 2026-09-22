@@ -27,6 +27,7 @@ class DVHub extends IPSModule
         $this->RegisterPropertyBoolean('DryRun', true);
         $this->RegisterAttributeString('LastRunSummary', '');
         $this->RegisterAttributeString('KnownIdents', '[]');
+        $this->RegisterAttributeString('ArchivingSetupDone', '[]');
         $this->RegisterTimer('RunCycle', 0, 'DVHUB_RunCycle($_IPS[\'TARGET\']);');
     }
 
@@ -192,23 +193,37 @@ class DVHub extends IPSModule
         $wanted = [];
         foreach ($this->decodeList('NAPs') as $nap) {
             if (($nap['id'] ?? '') !== '') {
-                $wanted['NAP_' . $this->safeIdent($nap['id']) . '_Setpoint'] = ['caption' => 'NAP-Sollwert ' . $nap['id'], 'type' => VARIABLETYPE_FLOAT, 'profile' => 'NRG.Watt'];
+                $wanted['NAP_' . $this->safeIdent($nap['id']) . '_Setpoint'] = ['caption' => 'NAP-Sollwert ' . $nap['id'], 'type' => VARIABLETYPE_FLOAT, 'profile' => 'NRG.Watt', 'archive' => false];
             }
         }
         foreach ($this->decodeList('Anlagenteile') as $a) {
             if (($a['id'] ?? '') !== '') {
-                $wanted['AT_' . $this->safeIdent($a['id']) . '_Watts'] = ['caption' => 'Sollwert ' . $a['id'], 'type' => VARIABLETYPE_FLOAT, 'profile' => 'NRG.Watt'];
-                $wanted['AT_' . $this->safeIdent($a['id']) . '_Grund'] = ['caption' => 'Grund ' . $a['id'], 'type' => VARIABLETYPE_STRING, 'profile' => ''];
+                // Archiv aktiviert: Grundlage für Abschnitt 3.7/3.8 des Neubau-Konzepts
+                // (Abrechnung je Anlagenteil). NAP-Sollwerte sind reine Regelgrößen,
+                // nicht abrechnungsrelevant, deshalb bewusst ohne Archiv.
+                $wanted['AT_' . $this->safeIdent($a['id']) . '_Watts'] = ['caption' => 'Sollwert ' . $a['id'], 'type' => VARIABLETYPE_FLOAT, 'profile' => 'NRG.Watt', 'archive' => true];
+                $wanted['AT_' . $this->safeIdent($a['id']) . '_Grund'] = ['caption' => 'Grund ' . $a['id'], 'type' => VARIABLETYPE_STRING, 'profile' => '', 'archive' => true];
             }
         }
 
         $known = json_decode($this->ReadAttributeString('KnownIdents'), true);
         $known = is_array($known) ? $known : [];
+        $archivingDone = json_decode($this->ReadAttributeString('ArchivingSetupDone'), true);
+        $archivingDone = is_array($archivingDone) ? $archivingDone : [];
 
         $this->ensureSharedWattProfile();
         foreach ($wanted as $ident => $def) {
             $this->MaintainVariable($ident, $def['caption'], $def['type'], $def['profile'], 0, true);
+            // Nur EINMALIG einschalten (Sinnvoller Default bei der ersten Anlage der
+            // Variable) — ein Nutzer, der die Archivierung später bewusst wieder
+            // ausschaltet (z. B. um Archivspeicher zu sparen), soll davon nicht bei
+            // jedem ApplyChanges() überstimmt werden.
+            if ($def['archive'] && !in_array($ident, $archivingDone, true)) {
+                $this->ensureArchiving($ident);
+                $archivingDone[] = $ident;
+            }
         }
+        $this->WriteAttributeString('ArchivingSetupDone', json_encode($archivingDone));
         foreach ($known as $ident) {
             if (!array_key_exists($ident, $wanted)) {
                 $this->MaintainVariable($ident, '', VARIABLETYPE_FLOAT, '', 0, false);
@@ -230,6 +245,28 @@ class DVHub extends IPSModule
             IPS_CreateVariableProfile('NRG.Watt', VARIABLETYPE_FLOAT);
             IPS_SetVariableProfileDigits('NRG.Watt', 1);
             IPS_SetVariableProfileText('NRG.Watt', '', ' W');
+        }
+    }
+
+    /**
+     * Aktiviert die IPS-Archivierung (Archive Control, Kern-Dienst — kein eigenes
+     * Speicherformat) für eine Anlagenteil-Variable, damit `AT_<id>_Watts`/`_Grund`
+     * über die Zeit nachvollziehbar bleiben (Grundlage für Abschnitt 3.7/3.8 des
+     * Neubau-Konzepts: Abrechnung je Anlagenteil). Wird von `registerVariables()` nur
+     * EINMALIG je Ident aufgerufen (siehe dort, `ArchivingSetupDone`) — ein Nutzer, der
+     * die Archivierung später bewusst wieder ausschaltet, wird nicht bei jedem
+     * `ApplyChanges()` überstimmt. Hinter `function_exists()`, damit ein Fehlen von
+     * Archive Control (sollte in echtem IP-Symcon nie vorkommen, ist Kernbestandteil)
+     * nicht die Instanz mitreißt.
+     */
+    private function ensureArchiving(string $ident): void
+    {
+        if (!function_exists('AC_SetLoggingStatus')) {
+            return;
+        }
+        $id = @$this->GetIDForIdent($ident);
+        if ($id > 0) {
+            AC_SetLoggingStatus($id, true);
         }
     }
 
