@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 (22.09.2026)
+
+- `DryRun`-Eigenschaft (Default `true`): `RunCycle()` rechnet und zeigt die Sollwerte,
+  schreibt aber erst nach bewusstem Ausschalten tatsächlich an den EZA-Regler-Treiber.
+  Ergänzt den schon vorhandenen `UpdateInterval=0`-Schutz um eine zweite, unabhängige
+  Sicherheitsstufe vor dem ersten scharfen Lauf an einer echten Installation.
+
 ## 0.3.0 (22.09.2026)
 
 - `DVHub`-Hauptinstanz gebaut (Prefix `DVHUB`): Stammdaten-Formular (NAPs, Anlagenteile,

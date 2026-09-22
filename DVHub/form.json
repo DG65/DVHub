@@ -151,13 +151,18 @@
       ]
     },
     {
+      "type": "CheckBox",
+      "name": "DryRun",
+      "caption": "Trockenlauf (rechnet und zeigt die Sollwerte, schreibt NICHT an die EZA-Regler) — vor dem ersten scharfen Lauf ausschalten"
+    },
+    {
       "type": "NumberSpinner",
       "name": "UpdateInterval",
       "caption": "Abfrage-/Regeltakt (Sekunden, 0 = deaktiviert — kein automatischer Lauf)"
     },
     {
       "type": "Button",
-      "caption": "Jetzt berechnen (Probelauf, schreibt auch an die EZA-Regler)",
+      "caption": "Jetzt berechnen",
       "onClick": "echo DVHUB_RunCycle($id);"
     },
     {

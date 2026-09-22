@@ -102,15 +102,25 @@ Formularfeld je Zeile — Symcons `List` unterstützt keine editierbare Unterlis
 
 **`RunCycle()`** (Prefix-Funktion `DVHUB_RunCycle($id)`, auch per Formular-Button
 „Jetzt berechnen" auslösbar): liest je NAP `GetAvailablePower()`, je Anlagenteil mit
-Vermarkter-Treiber `GetCurtailmentSignal()`, rechnet über `DVHUB_Calc`, schreibt die
-NAP-Sollwerte über `SetPowerSetpoint()` zurück, pflegt eigene Anzeige-Variablen
-(`AT_<id>_Watts`, `NAP_<id>_Setpoint`, Ident aus der Anlagenteil-/NAP-Kennung
-sanitisiert). Timer (`UpdateInterval`, Sekunden) standardmäßig **deaktiviert (0)** —
-bewusste Sicherheitsentscheidung: ein Regelkreis, der tatsächlich an reale EZA-Regler
-schreibt, darf nicht automatisch mit der Instanz-Erstellung scharf werden (Vorgeschichte:
-der WriteFunctionCode-Vorfall an der Solarpark-Installation, siehe
-`Solarpark-Neubau-Konzept.md`). Manuell über den Button auslösbar, ohne den Timer zu
-aktivieren.
+Vermarkter-Treiber `GetCurtailmentSignal()`, rechnet über `DVHUB_Calc`, pflegt eigene
+Anzeige-Variablen (`AT_<id>_Watts`, `NAP_<id>_Setpoint`, Ident aus der Anlagenteil-/
+NAP-Kennung sanitisiert). Zwei unabhängige Sicherheitsstufen, beide standardmäßig
+entschärft:
+
+- **`DryRun`** (Boolean, Default `true`): rechnet und zeigt die Sollwerte, ruft aber
+  `SetPowerSetpoint()` NICHT auf — der Bericht ist als „[TROCKENLAUF]" gekennzeichnet.
+  Bewusst per Voreinstellung an, bevor irgendjemand die erste Instanz an echte
+  EZA-Regler-Variablen hängt: der Aufruf schreibt sonst sofort einen echten Sollwert an
+  eine reale, ggf. produktive Anlage.
+- **`UpdateInterval`** (Sekunden, Default `0` = Timer deaktiviert): auch mit `DryRun=false`
+  läuft nichts automatisch, bis der Nutzer bewusst einen Takt einträgt. Vorgeschichte:
+  der WriteFunctionCode-Vorfall an der Solarpark-Installation (siehe
+  `Solarpark-Neubau-Konzept.md`) — ein Regelkreis darf nicht automatisch mit der
+  Instanz-Erstellung scharf werden.
+
+Reihenfolge für einen echten Rollout: 1) Treiber verdrahten, 2) `RunCycle()` manuell mit
+`DryRun=true` prüfen, 3) `DryRun` ausschalten, `RunCycle()` erneut manuell auslösen und
+das reale Ergebnis am EZA-Regler kontrollieren, 4) erst danach `UpdateInterval` setzen.
 
 **Kein Vermarkter-Treiber zugeordnet ist ein gültiger Zustand, keine Fail-safe-Situation.**
 `marketerDriverInstanceID == 0` (wie heute SP I.1) → Grundannahme 100 % (voller Betrieb),

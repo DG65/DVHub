@@ -28,8 +28,10 @@ class IPSModule
     public function ApplyChanges() {}
     public function RegisterPropertyString($n, $v) { $GLOBALS['props'][$n] ??= $v; }
     public function RegisterPropertyInteger($n, $v) { $GLOBALS['props'][$n] ??= $v; }
+    public function RegisterPropertyBoolean($n, $v) { $GLOBALS['props'][$n] ??= $v; }
     public function ReadPropertyString($n) { return $GLOBALS['props'][$n]; }
     public function ReadPropertyInteger($n) { return $GLOBALS['props'][$n]; }
+    public function ReadPropertyBoolean($n) { return $GLOBALS['props'][$n]; }
     public function RegisterAttributeString($n, $v) { $GLOBALS['attrs'][$n] ??= $v; }
     public function ReadAttributeString($n) { return $GLOBALS['attrs'][$n]; }
     public function WriteAttributeString($n, $v) { $GLOBALS['attrs'][$n] = $v; }
@@ -90,6 +92,7 @@ $GLOBALS['props']['AnlagenteilNapShares'] = json_encode([
     ['anlagenteilID' => 'SP I.2', 'napID' => 'Hofweier', 'kwpShare' => 3371.84],
 ]);
 $GLOBALS['props']['UpdateInterval'] = 0;
+$GLOBALS['props']['DryRun'] = false; // Live-Verhalten in diesem Test bewusst mitprüfen
 $hub->ApplyChanges();
 
 $fail = 0;
@@ -131,6 +134,26 @@ $GLOBALS['props']['Anlagenteile'] = json_encode([
 $hub->ApplyChanges();
 t('Entfernter Anlagenteil wird aus den Anzeige-Variablen entfernt (pruned)', in_array('AT_SP_I_2_Watts', $GLOBALS['pruned'], true));
 t('Verbleibender Anlagenteil bleibt erhalten', array_key_exists('AT_SP_I_1_Watts', $GLOBALS['maintained']));
+
+// Trockenlauf (Standard): rechnet, zeigt, schreibt NICHT an den echten EZA-Regler.
+$GLOBALS['props']['Anlagenteile'] = json_encode([
+    ['id' => 'SP I.1', 'name' => 'SP I.1', 'nameplateKWp' => 10000, 'ibnDate' => '2012', 'eegVersion' => '2012', 'operator' => 'A', 'marketerDriverInstanceID' => 0],
+    ['id' => 'SP I.2', 'name' => 'SP I.2', 'nameplateKWp' => 3371.84, 'ibnDate' => '2013', 'eegVersion' => '2013', 'operator' => 'A', 'marketerDriverInstanceID' => 601],
+]);
+$GLOBALS['props']['AnlagenteilNapShares'] = json_encode([
+    ['anlagenteilID' => 'SP I.1', 'napID' => 'Hofweier', 'kwpShare' => 4015.77],
+    ['anlagenteilID' => 'SP I.1', 'napID' => 'Albersboesch', 'kwpShare' => 5984.16],
+    ['anlagenteilID' => 'SP I.2', 'napID' => 'Hofweier', 'kwpShare' => 3371.84],
+]);
+$GLOBALS['props']['DryRun'] = true;
+$hub->ApplyChanges();
+$GLOBALS['blueLogSetpoints'] = [];
+$dryRunSummary = $hub->RunCycle();
+t('Trockenlauf schreibt NICHTS an den blue\'Log-Treiber', $GLOBALS['blueLogSetpoints'] === []);
+t('Trockenlauf-Bericht ist als solcher gekennzeichnet', str_contains($dryRunSummary, 'TROCKENLAUF'));
+t('Trockenlauf aktualisiert trotzdem die Anzeige-Variablen', $GLOBALS['maintained']['NAP_Hofweier_Setpoint'] > 0);
+$GLOBALS['props']['DryRun'] = false;
+$hub->ApplyChanges();
 
 // Fehlerhafte/fremde Treiber-Instanz darf nicht abstürzen.
 $GLOBALS['instances'][999] = 'UNBEKANNT';

@@ -23,6 +23,7 @@ class DVHub extends IPSModule
         $this->RegisterPropertyString('Anlagenteile', '[]');
         $this->RegisterPropertyString('AnlagenteilNapShares', '[]');
         $this->RegisterPropertyInteger('UpdateInterval', 0);
+        $this->RegisterPropertyBoolean('DryRun', true);
         $this->RegisterAttributeString('LastRunSummary', '');
         $this->RegisterAttributeString('KnownIdents', '[]');
         $this->RegisterTimer('RunCycle', 0, 'DVHUB_RunCycle($_IPS[\'TARGET\']);');
@@ -85,11 +86,12 @@ class DVHub extends IPSModule
         $napSetpoints = DVHUB_Calc::napSetpoints($shares);
         $anlagenteilWatts = DVHUB_Calc::anlagenteilWatts($shares);
 
+        $dryRun = $this->ReadPropertyBoolean('DryRun');
         $written = [];
         foreach ($naps as $nap) {
             $driverID = (int) ($nap['ezaDriverInstanceID'] ?? 0);
             $watts = $napSetpoints[$nap['id']] ?? 0.0;
-            if ($driverID > 0) {
+            if ($driverID > 0 && !$dryRun) {
                 $this->callDriver($driverID, 'SetPowerSetpoint', [$watts]);
             }
             $this->setMaintainedValue('NAP_' . $this->safeIdent($nap['id']) . '_Setpoint', $watts);
@@ -100,7 +102,9 @@ class DVHub extends IPSModule
             $this->setMaintainedValue('AT_' . $this->safeIdent($a['id']) . '_Watts', $watts);
         }
 
-        $summary = date('d.m.Y H:i:s') . ' — ' . implode(', ', $written);
+        // Trockenlauf ist der sichere Standard (siehe CLAUDE.md): erst rechnen und zeigen,
+        // schreiben an den echten EZA-Regler nur nach bewusstem Abschalten von DryRun.
+        $summary = date('d.m.Y H:i:s') . ' — ' . ($dryRun ? '[TROCKENLAUF, nichts geschrieben] ' : '') . implode(', ', $written);
         $this->WriteAttributeString('LastRunSummary', $summary);
         $this->UpdateFormField('LastRunLabel', 'caption', $summary);
 
