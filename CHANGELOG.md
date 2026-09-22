@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 (22.09.2026)
+
+- `libs/NetztransparenzClient.php`: Client für die echte Netztransparenz.de-WebAPI
+  (OAuth2 Client-Credentials, `NegativePreise/<1|3|4|6>`-Endpunkt, CSV-Parser).
+  IPS-frei, HTTP über injizierte Callables, 13 Stub-Tests
+  (`.tests/netztransparenz_test.php`), alle grün.
+- Bestätigt: Netztransparenz bietet eine echte API, kein reiner CSV-Download nötig.
+- Zwei offene Punkte bewusst nicht verschwiegen: welche der vier Regelvarianten
+  (1/3/4/6 Stunden) zu welcher EEG-Fassung gehört, ist nur plausibel hergeleitet, nicht
+  gegen den Gesetzestext verifiziert; Zugangsdaten müssen vom Anlagenbetreiber selbst
+  über den Netztransparenz-eigenen OAuth Manager beantragt werden.
+
 ## 0.3.2 (22.09.2026)
 
 - Live-Verdrahtung an der Solarpark-Hofweier-Installation, Testphase (`DryRun=true`):

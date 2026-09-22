@@ -214,15 +214,57 @@ Regel bei Cloud-/API-Treibern, „keine eigene Anlage als Norm" (Prüffrage bei 
 Formularfeld: gilt das für JEDEN Nutzer?), Hilfsordner im Repo-Wurzelverzeichnis mit
 führendem Punkt (Store-Fallstrick), globale Klassennamen mit Modul-Präfix (`DVHUB_…`).
 
+## Netztransparenz-Anbindung (`libs/NetztransparenzClient.php`, gebaut 22.09.2026)
+
+Netztransparenz.de bietet tatsächlich eine echte WebAPI (Dietmars Vermutung bestätigt),
+nicht nur CSV-Downloads: Basis-URL `https://ds.netztransparenz.de/api/v1/data`, OAuth
+2.0 Client-Credentials-Flow (Token-Endpunkt
+`https://identity.netztransparenz.de/users/connect/token`, Token 1 h gültig). Quelle:
+offizielle "Dokumentation WebAPI Netztransparenz" (Version 07.02.2025, PDF).
+
+**Zugangsdaten (Client_ID/Client_Secret) müssen von Dietmar selbst über den "OAuth
+Manager" im Extranet von Netztransparenz.de beantragt werden — das kann ich nicht
+automatisiert tun.** Ohne diese Zugangsdaten ist der Client zwar fertig und getestet,
+aber nicht live nutzbar.
+
+Endpunkt für unseren Zweck: `GET api/v1/data/NegativePreise/<1|3|4|6>` (Datum-Bereich
+über `dateFrom`/`dateTo`), Antwort CSV `Datum;Negativ` mit Ja/Nein je Stunde. Die vier
+Zahlen entsprechen vier verschiedenen gesetzlichen Regelvarianten
+("Negative Stunden (6H)/(4H)/(3H)/(1H)", aus dem API-eigenen Antwortformat 12
+abgeleitet) — **welche Zahl zu welcher EEG-Fassung gehört, ist bei mir nur eine aus dem
+Kontext plausible Vermutung** (`DVHUB_NetztransparenzClient::VERMUTETE_FASSUNG_ZU_STUNDEN`,
+im Code klar als ungeprüft markiert) — **vor produktivem Einsatz gegen den tatsächlichen
+Gesetzestext/eine amtliche Quelle verifizieren, nicht ungeprüft übernehmen.**
+
+`DVHUB_NetztransparenzClient`: IPS-freier Kern, HTTP-Aufrufe über injizierte Callables
+(kein echtes Netzwerk in Tests) — `getAccessToken()` (cacht bis kurz vor Ablauf),
+`fetchNegativePreise()`, `parseNegativePreiseCsv()` (statisch, reiner Parser). Getestet
+in `.tests/netztransparenz_test.php` (13 Prüfungen, gemockter HTTP-Layer, kein Bezug zu
+echten Zugangsdaten nötig).
+
+**Anbindung an `DVHUB_Calc::classifyReason()`:** bereits vorbereitet — die Funktion
+nimmt schon einen einfachen `bool $isNegativePriceHour` entgegen, den
+`fetchNegativePreise()` liefert (Lookup nach Stunden-Schlüssel). Kein Änderungsbedarf
+an `DVHUB_Calc` selbst.
+
+**Noch offen:**
+- Platzierung: eigenständige Bibliothek hier im DVHub-Repo (aktueller Stand) oder
+  Erweiterung von NRGBoersenpreis/SPOT (das Modul verarbeitet ohnehin schon
+  Day-Ahead-Preise)? Ist nicht solarpark-spezifisch, würde also auch anderen
+  EEG-Anlagen außerhalb von DVHub nützen. Mit Dietmar noch nicht entschieden.
+- Fassung-zu-Stundenzahl-Zuordnung gegen den echten Gesetzestext verifizieren (siehe oben).
+- Zugangsdaten-Beschaffung durch Dietmar (OAuth Manager im Extranet).
+- IPS-Wrapper (Zugangsdaten-Handshake-Muster wie bei MeterHubs Inexogy-Anbindung:
+  `RegisterAttributeString`, nicht Property; HTTP über `Sys_GetURLContentEx`/curl in
+  echtem IPS statt der Test-Callables), Einbau in `RunCycle()`.
+
 ## Nächste Schritte (Stand 22.09.2026, noch offen)
 
-1. Netztransparenz-Anbindung als eigenständiger, wiederverwendbarer Baustein — Dietmars
-   Hinweis (22.09.2026): eventuell über eine echte API statt CSV-Import möglich, noch
-   nicht recherchiert, ob Netztransparenz eine API anbietet oder nur die CSV-Tabellen.
-   Vor Umsetzung prüfen, welcher Weg tatsächlich verfügbar ist.
+1. Netztransparenz-Anbindung produktiv machen (siehe eigener Abschnitt oben): Platzierung
+   entscheiden, Fassung-Zuordnung verifizieren, Zugangsdaten, IPS-Wrapper.
 2. Grund-Klassifikation (`DVHUB_Calc::classifyReason()`) und Archiv/Abrechnungsreport in
-   `RunCycle()` einbauen — hängt an Punkt 1, bisher rechnet `RunCycle()` nur die
-   Sollwerte, ohne Gründe zu protokollieren.
+   `RunCycle()` einbauen — bisher rechnet `RunCycle()` nur die Sollwerte, ohne Gründe zu
+   protokollieren.
 3. Fail-safe-Timeout-Logik im Rechenkern (über den Sofort-Fallback der Treiber/des Hubs
    hinaus, siehe Abschnitt 3.4 des Neubau-Konzepts: kein Einfrieren, kein Sprung).
 4. VCOM-API als optionale Fallback-Quelle für `GetAvailablePower()` — Zugang/Doku noch

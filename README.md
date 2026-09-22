@@ -27,16 +27,19 @@ Details und Vertragsdefinitionen: [CLAUDE.md](CLAUDE.md).
 
 ## Status
 
-Frühe Entwicklungsphase (0.3.0). Fertig und getestet: der Rechenkern
+Frühe Entwicklungsphase (0.4.0). Fertig und getestet: der Rechenkern
 (`libs/DVHubCalc.php`, `php .tests/calc_test.php`), die beiden ersten Treiber
-`DVHubDriverBlueLog`/`DVHubDriverNext` (`php .tests/driver_test.php`) und die
+`DVHubDriverBlueLog`/`DVHubDriverNext` (`php .tests/driver_test.php`), die
 DVHub-Hauptinstanz mit Stammdaten-Formular und Quotierungs-Durchlauf
-(`php .tests/hub_test.php`). Der automatische Regeltakt ist standardmäßig
-deaktiviert — ein Lauf muss zunächst manuell über den Formular-Button ausgelöst werden.
+(`php .tests/hub_test.php`), sowie ein Client für die Netztransparenz.de-WebAPI
+(`libs/NetztransparenzClient.php`, `php .tests/netztransparenz_test.php`). Der
+automatische Regeltakt ist standardmäßig deaktiviert, `DryRun` ebenso — ein Lauf muss
+zunächst manuell und ohne Schreibzugriff bestätigt werden. Live an der Solarpark-
+Hofweier-Installation verdrahtet und getestet (Testphase, weiterhin `DryRun=true`).
 
-Noch nicht gebaut: Grund-Klassifikation/Archiv/Abrechnungsreport (hängt an der
-Netztransparenz-Anbindung), Fail-safe-Timeout-Logik über den Sofort-Fallback hinaus,
-Live-Test an einer echten Installation.
+Noch nicht gebaut: Grund-Klassifikation/Archiv/Abrechnungsreport in `RunCycle()`,
+Netztransparenz-Zugangsdaten (müssen vom Betreiber selbst beantragt werden) und die
+IPS-Anbindung des Clients, Fail-safe-Timeout-Logik über den Sofort-Fallback hinaus.
 
 ## Lizenz
 
