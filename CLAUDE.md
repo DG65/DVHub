@@ -85,9 +85,55 @@ ist (`STALE_SECONDS`), unabhängig vom eigentlichen Wert.
 
 **Noch nicht gebaut:** Die eigentliche Verdrahtung dieser Treiber-Instanzen mit konkreten
 Solarpark-Variablen (geschieht beim Anlegen der Instanz im Formular, keine Codeänderung
-nötig), die DVHub-Hauptinstanz selbst (`module.php`/Formular/Stammdaten/Quotierung/
-Archiv/Abrechnung, ruft `DVBLM_*`/`DVNXT_*` ab), Netztransparenz-Import, Fail-safe-
-Timeout-Logik im Rechenkern.
+nötig), Netztransparenz-Import, Fail-safe-Timeout-Logik über den Sofort-Fallback hinaus.
+
+## DVHub-Hauptinstanz (`DVHub/`, Prefix `DVHUB`, gebaut 22.09.2026)
+
+Stammdaten als drei `List`-Formularfelder (bewusst flach, kein verschachteltes
+Formularfeld je Zeile — Symcons `List` unterstützt keine editierbare Unterliste):
+
+- `NAPs`: `id`, `name`, `ezaDriverInstanceID` (SelectInstance, zeigt auf eine beliebige
+  EZA-Regler-Treiber-Instanz).
+- `Anlagenteile`: `id`, `name`, `nameplateKWp`, `ibnDate`, `eegVersion`, `operator`,
+  `marketerDriverInstanceID` (0 = kein Direktvermarkter, gültiger Zustand — siehe unten).
+- `AnlagenteilNapShares`: eigene, flache Verknüpfungstabelle `anlagenteilID`/`napID`/
+  `kwpShare` statt einer Unterliste je Anlagenteil-Zeile — löst, wie ein Anlagenteil (SP I.1)
+  an mehreren NAPs hängen kann, ohne Symcons `List`-Grenzen zu verletzen.
+
+**`RunCycle()`** (Prefix-Funktion `DVHUB_RunCycle($id)`, auch per Formular-Button
+„Jetzt berechnen" auslösbar): liest je NAP `GetAvailablePower()`, je Anlagenteil mit
+Vermarkter-Treiber `GetCurtailmentSignal()`, rechnet über `DVHUB_Calc`, schreibt die
+NAP-Sollwerte über `SetPowerSetpoint()` zurück, pflegt eigene Anzeige-Variablen
+(`AT_<id>_Watts`, `NAP_<id>_Setpoint`, Ident aus der Anlagenteil-/NAP-Kennung
+sanitisiert). Timer (`UpdateInterval`, Sekunden) standardmäßig **deaktiviert (0)** —
+bewusste Sicherheitsentscheidung: ein Regelkreis, der tatsächlich an reale EZA-Regler
+schreibt, darf nicht automatisch mit der Instanz-Erstellung scharf werden (Vorgeschichte:
+der WriteFunctionCode-Vorfall an der Solarpark-Installation, siehe
+`Solarpark-Neubau-Konzept.md`). Manuell über den Button auslösbar, ohne den Timer zu
+aktivieren.
+
+**Kein Vermarkter-Treiber zugeordnet ist ein gültiger Zustand, keine Fail-safe-Situation.**
+`marketerDriverInstanceID == 0` (wie heute SP I.1) → Grundannahme 100 % (voller Betrieb),
+nicht die 0-%-Fail-safe der Treiber selbst. Die 0-%-Fail-safe gilt nur, wenn ein Treiber
+zugeordnet, aber gerade nicht erreichbar ist — das ist der eigentliche Fehlerfall.
+
+**Treiber-Aufruf mit dynamisch aufgelöstem Modul-Prefix (`callDriver()`):** anders als das
+sonst im NRG-Stack übliche Muster eines fest bekannten Partnermoduls
+(`function_exists('MHUB_GetFunctions')`) kennt DVHub den Prefix einer Treiber-Instanz zur
+Entwicklungszeit nicht — er wird zur Laufzeit über `IPS_GetInstance()`/`IPS_GetModule()`
+aus der vom Nutzer gewählten `SelectInstance` aufgelöst. Jeder Aufruf steht in
+`try/catch (\Throwable)`: eine fehlerhafte oder unbekannte Treiber-Instanz liefert `null`
+zurück (führt zu deren jeweiligem Fail-safe-Wert weiter oben in der Kette), reißt DVHub
+nie mit.
+
+**`NRG.Watt`-Profil:** DVHub ist nicht dessen Eigentümer (`ensureSharedWattProfile()`,
+legt nur bei Fehlen an, überschreibt eine bereits von einem anderen NRG-Stack-Modul
+angelegte Definition nicht — Muster aus MeterHubs `ensureSharedProfile()`).
+
+Getestet in `.tests/hub_test.php` (Stub-Umgebung inkl. zweier simulierter Treiber-Module
+mit eigenem Prefix, 11 Prüfungen: Variablen-Registrierung/-Pruning, End-zu-Ende-Rechnung
+über zwei NAPs mit einem mehrfach angebundenen Anlagenteil, unvermarkteter vs.
+vermarkteter Anlagenteil, defensive Behandlung eines unbekannten Treiber-Prefix).
 
 ### Warum nicht ein gemeinsamer Vertrag für beide Rollen?
 
@@ -164,9 +210,13 @@ führendem Punkt (Store-Fallstrick), globale Klassennamen mit Modul-Präfix (`DV
    Hinweis (22.09.2026): eventuell über eine echte API statt CSV-Import möglich, noch
    nicht recherchiert, ob Netztransparenz eine API anbietet oder nur die CSV-Tabellen.
    Vor Umsetzung prüfen, welcher Weg tatsächlich verfügbar ist.
-2. Fail-safe-Timeout-Logik im Rechenkern (über den Sofort-Fallback der Treiber hinaus,
-   siehe oben — Abschnitt 3.4 des Neubau-Konzepts: kein Einfrieren, kein Sprung).
-3. `module.php`/`form.json` für die DVHub-Hauptinstanz (Stammdaten-Formular, Live-
-   Verdrahtung der Treiber, Archiv, Abrechnungsreport).
+2. Grund-Klassifikation (`DVHUB_Calc::classifyReason()`) und Archiv/Abrechnungsreport in
+   `RunCycle()` einbauen — hängt an Punkt 1, bisher rechnet `RunCycle()` nur die
+   Sollwerte, ohne Gründe zu protokollieren.
+3. Fail-safe-Timeout-Logik im Rechenkern (über den Sofort-Fallback der Treiber/des Hubs
+   hinaus, siehe Abschnitt 3.4 des Neubau-Konzepts: kein Einfrieren, kein Sprung).
 4. VCOM-API als optionale Fallback-Quelle für `GetAvailablePower()` — Zugang/Doku noch
    nicht vorhanden.
+5. Live-Test an der Solarpark-Installation: Treiber-Instanzen anlegen, mit den echten
+   blue'Log-/Next-Variablen verknüpfen, `UpdateInterval` bewusst weiterhin auf 0 lassen,
+   bis ein manueller Probelauf (Button) die Ergebnisse bestätigt hat.

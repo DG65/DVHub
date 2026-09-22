@@ -27,11 +27,16 @@ Details und Vertragsdefinitionen: [CLAUDE.md](CLAUDE.md).
 
 ## Status
 
-Frühe Entwicklungsphase (0.2.0). Fertig und getestet: der Rechenkern
-(`libs/DVHubCalc.php`, `php .tests/calc_test.php`) sowie die beiden ersten Treiber
-`DVHubDriverBlueLog` und `DVHubDriverNext` (`php .tests/driver_test.php`). Noch nicht
-gebaut: die eigentliche DVHub-Hauptinstanz (Stammdaten-Formular, Live-Verdrahtung,
-Archiv, Abrechnungsreport) und die Netztransparenz-Anbindung.
+Frühe Entwicklungsphase (0.3.0). Fertig und getestet: der Rechenkern
+(`libs/DVHubCalc.php`, `php .tests/calc_test.php`), die beiden ersten Treiber
+`DVHubDriverBlueLog`/`DVHubDriverNext` (`php .tests/driver_test.php`) und die
+DVHub-Hauptinstanz mit Stammdaten-Formular und Quotierungs-Durchlauf
+(`php .tests/hub_test.php`). Der automatische Regeltakt ist standardmäßig
+deaktiviert — ein Lauf muss zunächst manuell über den Formular-Button ausgelöst werden.
+
+Noch nicht gebaut: Grund-Klassifikation/Archiv/Abrechnungsreport (hängt an der
+Netztransparenz-Anbindung), Fail-safe-Timeout-Logik über den Sofort-Fallback hinaus,
+Live-Test an einer echten Installation.
 
 ## Lizenz
 

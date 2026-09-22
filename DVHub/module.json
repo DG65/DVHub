@@ -1,0 +1,14 @@
+{
+  "id": "{3749E0E2-9293-4075-96A1-65DBF06D1AD9}",
+  "name": "DVHub",
+  "type": 3,
+  "vendor": "",
+  "aliases": [
+    "NRG-Stack DVHub"
+  ],
+  "url": "https://github.com/DG65/DVHub",
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "DVHUB"
+}

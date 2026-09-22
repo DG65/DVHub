@@ -1,0 +1,177 @@
+{
+  "elements": [
+    {
+      "type": "Label",
+      "caption": "DVHub orchestriert die Quotierung über NAPs, Anlagenteile und Betreiber hinweg. Kennt selbst keine EZA-Regler-/Direktvermarkter-Hardware — dafür je eine Treiber-Instanz (DVHubDriverBlueLog, DVHubDriverNext o. ä.) unten zuweisen."
+    },
+    {
+      "type": "List",
+      "name": "NAPs",
+      "caption": "Netzanschlusspunkte (NAPs)",
+      "add": true,
+      "delete": true,
+      "columns": [
+        {
+          "caption": "Kennung",
+          "name": "id",
+          "width": "150px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "Name",
+          "name": "name",
+          "width": "200px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "EZA-Regler-Treiber",
+          "name": "ezaDriverInstanceID",
+          "width": "250px",
+          "add": 0,
+          "edit": {
+            "type": "SelectInstance"
+          }
+        }
+      ]
+    },
+    {
+      "type": "List",
+      "name": "Anlagenteile",
+      "caption": "Anlagenteile",
+      "add": true,
+      "delete": true,
+      "columns": [
+        {
+          "caption": "Kennung",
+          "name": "id",
+          "width": "100px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "Name",
+          "name": "name",
+          "width": "150px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "Nennleistung (kWp)",
+          "name": "nameplateKWp",
+          "width": "130px",
+          "add": 0,
+          "edit": {
+            "type": "NumberSpinner",
+            "digits": 2
+          }
+        },
+        {
+          "caption": "IBN-Datum",
+          "name": "ibnDate",
+          "width": "110px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "EEG-Fassung",
+          "name": "eegVersion",
+          "width": "110px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "Betreiber",
+          "name": "operator",
+          "width": "150px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "Direktvermarkter-Treiber (0 = keiner)",
+          "name": "marketerDriverInstanceID",
+          "width": "250px",
+          "add": 0,
+          "edit": {
+            "type": "SelectInstance"
+          }
+        }
+      ]
+    },
+    {
+      "type": "List",
+      "name": "AnlagenteilNapShares",
+      "caption": "Kapazitätsanteile je Anlagenteil und NAP (ein Anlagenteil an mehreren NAPs braucht mehrere Zeilen, z. B. SP I.1)",
+      "add": true,
+      "delete": true,
+      "columns": [
+        {
+          "caption": "Anlagenteil-Kennung",
+          "name": "anlagenteilID",
+          "width": "150px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "NAP-Kennung",
+          "name": "napID",
+          "width": "150px",
+          "add": "",
+          "edit": {
+            "type": "ValidationTextBox"
+          }
+        },
+        {
+          "caption": "Kapazitätsanteil (kWp)",
+          "name": "kwpShare",
+          "width": "150px",
+          "add": 0,
+          "edit": {
+            "type": "NumberSpinner",
+            "digits": 2
+          }
+        }
+      ]
+    },
+    {
+      "type": "NumberSpinner",
+      "name": "UpdateInterval",
+      "caption": "Abfrage-/Regeltakt (Sekunden, 0 = deaktiviert — kein automatischer Lauf)"
+    },
+    {
+      "type": "Button",
+      "caption": "Jetzt berechnen (Probelauf, schreibt auch an die EZA-Regler)",
+      "onClick": "echo DVHUB_RunCycle($id);"
+    },
+    {
+      "type": "Label",
+      "name": "LastRunLabel",
+      "caption": "Noch kein Lauf erfolgt."
+    }
+  ],
+  "actions": [],
+  "status": [
+    {
+      "code": 102,
+      "icon": "active",
+      "caption": "Aktiv"
+    }
+  ]
+}
