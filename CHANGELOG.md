@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.2 (22.09.2026)
+
+- Live-Verdrahtung an der Solarpark-Hofweier-Installation, Testphase (`DryRun=true`):
+  2× `DVHubDriverBlueLog`, 4× `DVHubDriverNext`, 1× `DVHub`-Hauptinstanz mit realen
+  Stammdaten, komplett getrennt von den bestehenden Alt-Skripten.
+  Probelauf erfolgreich, nichts geschrieben.
+- Fund: die naheliegenden "Gesamt"-Variablen sind statische Nennleistungs-Summen, keine
+  live Verfügbarkeit; die echte "Verfügbare Wirkleistung" von blue'Log deckt nur 4 von
+  12 Trafos ab. Interimslösung: Summe der 12 Trafo-"Leistung"-Werte je NAP (nur
+  theoretisch identisch mit echter Verfügbarkeit, solange nicht abgeregelt wird — siehe
+  CLAUDE.md). Kein Code-Änderung an den Modulen selbst, nur ein installationsspezifisches
+  Aggregations-Skript außerhalb des Repos.
+
 ## 0.3.1 (22.09.2026)
 
 - `DryRun`-Eigenschaft (Default `true`): `RunCycle()` rechnet und zeigt die Sollwerte,

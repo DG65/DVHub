@@ -230,3 +230,39 @@ führendem Punkt (Store-Fallstrick), globale Klassennamen mit Modul-Präfix (`DV
 5. Live-Test an der Solarpark-Installation: Treiber-Instanzen anlegen, mit den echten
    blue'Log-/Next-Variablen verknüpfen, `UpdateInterval` bewusst weiterhin auf 0 lassen,
    bis ein manueller Probelauf (Button) die Ergebnisse bestätigt hat.
+
+## Live-Verdrahtung Solarpark Hofweier (22.09.2026, Testphase, `DryRun=true`)
+
+Erster Probelauf zeigte: die naheliegenden "Gesamt"-Variablen der Anlage (Hofweier/
+Albersbösch) sind **statische Nennleistungs-Summen**, keine live wetterabhängige
+Verfügbarkeit — untauglich als `AvailablePowerVariableID` trotz plausibel klingendem
+Namen. Die "echte" `Verfügbare Wirkleistung`, die blue'Log selbst berechnet (siehe oben),
+existiert an dieser Installation nur für 4 von 12 Trafos (deckt nur einen Teil beider
+NAPs ab) — als alleinige Quelle ungeeignet, weil sie die tatsächliche Verfügbarkeit
+massiv unterschätzen würde.
+
+**Interimslösung (Dietmar, 22.09.2026):** Summe der 12 Trafo-„Leistung"-Werte (aktuell
+erzeugte, nicht theoretisch mögliche Wirkleistung) je NAP, in einem eigenen Skript
+außerhalb des Moduls (Solarpark-installationsspezifische Trafo-Zuordnung gehört nicht in
+den generischen Treiber-Code). Bewusste Einschränkung, von Dietmar bestätigt: **nur
+theoretisch identisch mit echter Verfügbarkeit, solange nicht abgeregelt wird** — sobald
+eine echte Abregelung aktiv ist, spiegelt "Leistung" bereits die Abregelung selbst wider
+(Zirkelschluss-Risiko: die Referenzgröße für "100 %" würde mit der Abregelung selbst
+schrumpfen, eine Wiederaufnahme der vollen Leistung wäre rechnerisch nicht mehr sauber
+darstellbar). Deckt aber, anders als die 4-von-12-Teilabdeckung der echten "Verfügbaren
+Wirkleistung", alle 12 Trafos/beide NAPs vollständig ab.
+
+Aufbau: neue Kategorie „DVHub (Neubau, Testphase)" unter der Direktvermarktungs­
+schnittstellen-Kategorie der Solarpark-Installation, komplett getrennt von den
+bestehenden Alt-Skripten (nichts Bestehendes verändert). 2× `DVHubDriverBlueLog`
+(Hofweier/Albersbösch), 4× `DVHubDriverNext` (SP I.2/II.1/II.2/II.3 — SP I.1 bewusst
+ohne Vermarkter-Treiber, siehe oben), 1× `DVHub`-Hauptinstanz mit den realen
+Stammdaten, `DryRun=true`. Ein separates Skript summiert die 12 Trafo-„Leistung"-Werte
+alle 60 s in zwei Variablen, auf die die beiden `DVHubDriverBlueLog`-Instanzen zeigen.
+
+Probelauf bestätigt: Ergebnis reagiert jetzt korrekt auf Tageszeit (0 W nachts, statt
+konstant der Nennleistungs-Summe wie zuvor). Sobald eine echte, nicht-zirkuläre
+Verfügbarkeitsquelle existiert (Pyranometer/Einstrahlungssensoren-Berechnung, siehe
+Neubau-Konzept 3.6, oder eine vollständigere blue'Log-Quelle), sollte sie diese
+Interimslösung ersetzen — vor allem, bevor `DryRun` für einen echten Betrieb
+ausgeschaltet wird.
