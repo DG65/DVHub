@@ -27,10 +27,11 @@ Details und Vertragsdefinitionen: [CLAUDE.md](CLAUDE.md).
 
 ## Status
 
-Frühe Entwicklungsphase (0.1.0). Der Rechenkern (`libs/DVHubCalc.php`, CLI-testbar über
-`php .tests/calc_test.php`) ist funktionsfähig und gegen Live-Werte einer echten
-Solarpark-Installation abgesichert. Das eigentliche IP-Symcon-Modul (Formular, Treiber-
-Anbindung, Archiv, Abrechnungsreport) ist noch nicht gebaut.
+Frühe Entwicklungsphase (0.2.0). Fertig und getestet: der Rechenkern
+(`libs/DVHubCalc.php`, `php .tests/calc_test.php`) sowie die beiden ersten Treiber
+`DVHubDriverBlueLog` und `DVHubDriverNext` (`php .tests/driver_test.php`). Noch nicht
+gebaut: die eigentliche DVHub-Hauptinstanz (Stammdaten-Formular, Live-Verdrahtung,
+Archiv, Abrechnungsreport) und die Netztransparenz-Anbindung.
 
 ## Lizenz
 

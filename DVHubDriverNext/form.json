@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "Label",
+      "caption": "Direktvermarkter-Treiber für Next. Liest die Curtailment-Vorgabe (0-100 %) aus einer bestehenden Variable, z. B. einem Register des NRG-Stack ModbusServer (blue'Log-RPC-Emulation), über das Next die Anlage steuert."
+    },
+    {
+      "type": "SelectVariable",
+      "name": "SignalVariableID",
+      "caption": "Variable: Curtailment-Vorgabe (%)"
+    }
+  ],
+  "actions": [],
+  "status": [
+    {
+      "code": 102,
+      "icon": "active",
+      "caption": "Aktiv"
+    },
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "Pflichtfeld unvollständig — bitte Signal-Variable wählen"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "elements": [
+    {
+      "type": "Label",
+      "caption": "EZA-Regler-Treiber für blue'Log Master. Liest die von blue'Log selbst berechnete, aktuell verfügbare Wirkleistung und schreibt den DVHub-Sollwert in eine bestehende blue'Log-Variable zurück."
+    },
+    {
+      "type": "SelectVariable",
+      "name": "AvailablePowerVariableID",
+      "caption": "Variable: verfügbare Wirkleistung (W)"
+    },
+    {
+      "type": "SelectVariable",
+      "name": "SetpointVariableID",
+      "caption": "Variable: Wirkleistungssollwert (Schreibziel)"
+    },
+    {
+      "type": "Select",
+      "name": "SetpointMode",
+      "caption": "Einheit der Sollwert-Variable",
+      "options": [
+        {
+          "caption": "Prozent der verfügbaren Leistung",
+          "value": "percent"
+        },
+        {
+          "caption": "Absolute Watt",
+          "value": "absolute"
+        }
+      ]
+    }
+  ],
+  "actions": [],
+  "status": [
+    {
+      "code": 102,
+      "icon": "active",
+      "caption": "Aktiv"
+    },
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "Pflichtfelder unvollständig — bitte beide Variablen wählen"
+    }
+  ]
+}

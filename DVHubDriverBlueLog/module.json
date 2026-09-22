@@ -1,0 +1,14 @@
+{
+  "id": "{749B2B08-C531-4E6F-B491-EF540817777C}",
+  "name": "DVHubDriverBlueLog",
+  "type": 3,
+  "vendor": "",
+  "aliases": [
+    "NRG-Stack DVHub Treiber blue'Log"
+  ],
+  "url": "https://github.com/DG65/DVHub",
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "DVBLM"
+}

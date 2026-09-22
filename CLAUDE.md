@@ -57,10 +57,37 @@ DVHubs Formular als InstanceID ausgewählt (0 = kein Direktvermarkter, z. B. SP 
 | `<X>_GetCurtailmentSignal($id): float` | Vorgabe in Prozent, 0.0–100.0. Vertrag erlaubt bewusst Zwischenwerte, auch wenn heutige Vermarkter (Next) real nur 0/100 liefern — künftige Vermarkter mit feinerer Stufung (z. B. 60/30/0 %) brauchen keinen Vertragsbruch. |
 | `<X>_GetDriverState($id): string` (JSON) | wie oben. |
 
-**Noch nicht gebaut:** der konkrete Next-Treiber (liest die Register aus Dietmars
-`NRGModbusServer`-Instanz) und der blue'Log-Treiber (liest/schreibt über die nativen
-ModBus-Device-Instanzen). Das sind eigene, spätere Bausteine — DVHub selbst darf keine
-Kenntnis von Modbus/blue'Log/Next haben, sonst bricht die Herstellerneutralität.
+**Gebaut (22.09.2026):** `DVHubDriverBlueLog/` und `DVHubDriverNext/`, je als eigenständiges
+Symcon-Modul (`module.json`/`form.json`/`module.php`, Prefix `DVBLM` bzw. `DVNXT`). Beide
+kennen kein Modbus-/blue'Log-RPC-Protokoll selbst — die eigentliche Protokollarbeit
+übernehmen die nativen ModBus-Device-Instanzen bzw. Dietmars eigenes `NRGModbusServer`-Modul;
+die Treiber verbinden nur die daraus schon abgeleiteten IPS-Variablen (per `SelectVariable`
+im Formular gewählt, keine hartkodierten IDs) mit dem DVHub-Vertrag. Getestet in
+`.tests/driver_test.php` (Stub-Umgebung, 15 Prüfungen).
+
+**`DVHubDriverBlueLog` — Besonderheit Prozent- vs. Watt-Sollwert:** Live an der Solarpark-
+Installation vorgefunden (22.09.2026, unter den blue'Log-Datenlogger-Instanzen, Kategorie
+„Leistung je Phase"): Der Sollwert-Eingang von blue'Log ist selbst ein Prozentwert
+(„Wirkleistungssollwert (%)"), relativ zur von blue'Log berechneten eigenen verfügbaren
+Leistung — nicht absolut in Watt. `SetpointMode` (Property, Default `'percent'`) rechnet
+deshalb den vom Hub gelieferten absoluten Watt-Sollwert vor dem Schreiben um; `'absolute'`
+bleibt für andere EZA-Regler-Systeme vorgesehen, die tatsächlich Watt erwarten.
+
+**Fail-safe-Grundprinzip beider Treiber (noch nicht die volle Timeout-Guard-Logik aus
+Abschnitt 3.4 des Neubau-Konzepts, nur der sichere Sofort-Fallback bei fehlender/kaputter
+Konfiguration):** Unsicherheit führt immer zu WENIGER angeforderter/gemeldeter Leistung,
+nie zu mehr. `GetAvailablePower()` liefert bei fehlender Konfiguration `0.0` (Hub fordert
+dann nichts an). `GetCurtailmentSignal()` liefert bei fehlender Konfiguration ebenfalls
+`0.0`, nicht `100.0` — eine angenommene Abschaltung verletzt nie eine echte, uns nur nicht
+bekannte Abregelungsvorgabe; eine fälschlich angenommene volle Leistung wäre der unsichere
+Fehler. `GetDriverState()` meldet `connected: false`, wenn der letzte Wert älter als 300 s
+ist (`STALE_SECONDS`), unabhängig vom eigentlichen Wert.
+
+**Noch nicht gebaut:** Die eigentliche Verdrahtung dieser Treiber-Instanzen mit konkreten
+Solarpark-Variablen (geschieht beim Anlegen der Instanz im Formular, keine Codeänderung
+nötig), die DVHub-Hauptinstanz selbst (`module.php`/Formular/Stammdaten/Quotierung/
+Archiv/Abrechnung, ruft `DVBLM_*`/`DVNXT_*` ab), Netztransparenz-Import, Fail-safe-
+Timeout-Logik im Rechenkern.
 
 ### Warum nicht ein gemeinsamer Vertrag für beide Rollen?
 
@@ -133,11 +160,13 @@ führendem Punkt (Store-Fallstrick), globale Klassennamen mit Modul-Präfix (`DV
 
 ## Nächste Schritte (Stand 22.09.2026, noch offen)
 
-1. blue'Log-Treiber und Next-Treiber tatsächlich bauen (letzterer konsumiert Dietmars
-   `NRGModbusServer`-Register).
-2. Netztransparenz-CSV-Import als eigenständiger, wiederverwendbarer Baustein.
-3. Fail-safe-Timeout-Logik im Rechenkern.
-4. `module.php`/`form.json` für die DVHub-Hauptinstanz (Stammdaten-Formular, Live-
+1. Netztransparenz-Anbindung als eigenständiger, wiederverwendbarer Baustein — Dietmars
+   Hinweis (22.09.2026): eventuell über eine echte API statt CSV-Import möglich, noch
+   nicht recherchiert, ob Netztransparenz eine API anbietet oder nur die CSV-Tabellen.
+   Vor Umsetzung prüfen, welcher Weg tatsächlich verfügbar ist.
+2. Fail-safe-Timeout-Logik im Rechenkern (über den Sofort-Fallback der Treiber hinaus,
+   siehe oben — Abschnitt 3.4 des Neubau-Konzepts: kein Einfrieren, kein Sprung).
+3. `module.php`/`form.json` für die DVHub-Hauptinstanz (Stammdaten-Formular, Live-
    Verdrahtung der Treiber, Archiv, Abrechnungsreport).
-5. VCOM-API als optionale Fallback-Quelle für `GetAvailablePower()` — Zugang/Doku noch
+4. VCOM-API als optionale Fallback-Quelle für `GetAvailablePower()` — Zugang/Doku noch
    nicht vorhanden.

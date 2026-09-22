@@ -1,0 +1,14 @@
+{
+  "id": "{0980E9DF-A90E-47BA-AC8E-A70B1E889BD9}",
+  "name": "DVHubDriverNext",
+  "type": 3,
+  "vendor": "",
+  "aliases": [
+    "NRG-Stack DVHub Treiber Next"
+  ],
+  "url": "https://github.com/DG65/DVHub",
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "DVNXT"
+}
