@@ -227,23 +227,33 @@ in der PDF-Doku beschriebenen Query-Parameter, vollständige `logic`-Werteliste
 1/2/3/4/6/15) und die noch offene Migration von Szenariorechners bestehenden
 Zugangsdaten: siehe `DG65/NRGNetztransparenz`, dortige CLAUDE.md.
 
-**Anbindung an `DVHUB_Calc::classifyReason()`:** vorbereitet, aber noch nicht verdrahtet
-— die Funktion nimmt einen einfachen `bool $isNegativePriceHour` entgegen, den
-`NTP_IsNegativePriceHour($id, $unixTimestamp)` liefern würde (Aufruf über
-`function_exists('NTP_IsNegativePriceHour')`, analog zum Treiber-Aufrufmuster oben).
-Kein Änderungsbedarf an `DVHUB_Calc` selbst. Noch zu tun: `RunCycle()` ruft das noch
-nicht auf (siehe „Nächste Schritte").
+**Verdrahtet (22.09.2026):** `RunCycle()` ruft `isNegativePriceHour()` (private
+Hilfsmethode) einmal je Durchlauf für `time()` auf und berechnet daraus je Anlagenteil
+den Grund über `DVHUB_Calc::classifyReason()` — sichtbar als neue String-Anzeige-
+Variable `AT_<id>_Grund` (`'eeg51'|'marketer'|'none'`), mitgepflegt/geprunt wie die
+`_Watts`-Variablen. **Bewusst KEIN dynamisch aufgelöster Treiber wie bei EZA-Regler/
+Direktvermarkter** (`callDriver()`): Netztransparenz ist ein einziges, fest bekanntes
+Verbundmodul, kein vom Nutzer wählbarer Treiber — DVHub sucht sich selbst die erste
+vorhandene `Netztransparenz`-Instanz (`IPS_GetInstanceListByModuleID()` mit deren
+Modul-GUID), der Nutzer konfiguriert dafür nichts in den Stammdaten. Fail-safe wie im
+Netztransparenz-Modul selbst: `false`, wenn das Modul fehlt oder der Aufruf fehlschlägt
+(nie eine unbestätigte negative-Preis-Behauptung unterstellen). Getestet in
+`.tests/hub_test.php` (u. a.: Grund kippt korrekt auf `eeg51`, sobald eine simulierte
+Netztransparenz-Instanz eine negative Stunde meldet — überstimmt sowohl "kein
+Vermarkter" als auch ein Next-Signal).
+
+**Noch nicht enthalten:** historisches Wegschreiben des Grunds (Archiv/
+Abrechnungsreport, siehe „Nächste Schritte") — der Grund ist aktuell nur eine
+Live-Momentaufnahme, keine Zeitreihe.
 
 ## Nächste Schritte (Stand 22.09.2026, noch offen)
 
-1. `NTP_IsNegativePriceHour()` aus `DG65/NRGNetztransparenz` in `RunCycle()` einbauen
-   (hinter `function_exists()`-Wächter, siehe eigener Abschnitt oben).
-2. Grund-Klassifikation (`DVHUB_Calc::classifyReason()`) und Archiv/Abrechnungsreport in
-   `RunCycle()` einbauen — bisher rechnet `RunCycle()` nur die Sollwerte, ohne Gründe zu
-   protokollieren.
-3. Fail-safe-Timeout-Logik im Rechenkern (über den Sofort-Fallback der Treiber/des Hubs
+1. Archiv/Abrechnungsreport: den je Durchlauf berechneten Grund (`AT_<id>_Grund`)
+   historisch wegschreiben (z. B. IPS-Archivdienst je Variable), plus ein Report, der
+   das je Anlagenteil/Betreiber auswertet (Abschnitt 3.7/3.8 des Neubau-Konzepts).
+2. Fail-safe-Timeout-Logik im Rechenkern (über den Sofort-Fallback der Treiber/des Hubs
    hinaus, siehe Abschnitt 3.4 des Neubau-Konzepts: kein Einfrieren, kein Sprung).
-4. VCOM-API als optionale Fallback-Quelle für `GetAvailablePower()` — Zugang/Doku noch
+3. VCOM-API als optionale Fallback-Quelle für `GetAvailablePower()` — Zugang/Doku noch
    nicht vorhanden.
 5. Live-Test an der Solarpark-Installation: Treiber-Instanzen anlegen, mit den echten
    blue'Log-/Next-Variablen verknüpfen, `UpdateInterval` bewusst weiterhin auf 0 lassen,

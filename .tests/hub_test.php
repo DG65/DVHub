@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 define('KL_WARNING', 2);
 define('VARIABLETYPE_FLOAT', 2);
+define('VARIABLETYPE_STRING', 3);
 
 $GLOBALS['props'] = [];
 $GLOBALS['attrs'] = ['KnownIdents' => '[]', 'LastRunSummary' => ''];
@@ -69,6 +70,10 @@ function IPS_SetVariableProfileText($name, $prefix, $suffix) {}
 function IPS_GetInstance($id) { return ['ModuleInfo' => ['ModuleID' => '{' . $GLOBALS['instances'][$id] . '}']]; }
 function IPS_GetModule($moduleID) { return ['Prefix' => trim($moduleID, '{}')]; }
 
+// Netztransparenz-Modul standardmäßig NICHT installiert (leere Instanzliste) -> isNegativePriceHour() fällt sicher auf false zurück.
+$GLOBALS['ntpInstances'] = [];
+function IPS_GetInstanceListByModuleID($guid) { return $guid === '{446D79AD-D546-48AF-AE5C-96D635E2A203}' ? $GLOBALS['ntpInstances'] : []; }
+
 $GLOBALS['available'] = [501 => 7387.61 * 1000.0, 502 => 10017.0 * 1000.0]; // W, testweise = Nennleistung
 function DVBLM_GetAvailablePower($id) { return $GLOBALS['available'][$id]; }
 function DVBLM_SetPowerSetpoint($id, $watts) { $GLOBALS['blueLogSetpoints'][$id] = $watts; return true; }
@@ -105,7 +110,7 @@ function t(string $label, bool $ok): void
     }
 }
 
-t('registerVariables legt Anzeige-Variablen für NAPs und Anlagenteile an', count($GLOBALS['maintained']) === 4);
+t('registerVariables legt Anzeige-Variablen für NAPs und Anlagenteile (Watts+Grund) an', count($GLOBALS['maintained']) === 6);
 
 $summary = $hub->RunCycle();
 t('RunCycle liefert einen nichtleeren Bericht zurück', $summary !== '' && str_contains($summary, 'Hofweier'));
@@ -126,6 +131,18 @@ t(
 
 t('Anzeige-Variable AT_SP_I_2_Watts spiegelt die Next-Abschaltung (0 W)', abs($GLOBALS['maintained']['AT_SP_I_2_Watts']) < 1.0);
 t('Anzeige-Variable AT_SP_I_1_Watts > 0 (unvermarktet, läuft voll)', $GLOBALS['maintained']['AT_SP_I_1_Watts'] > 0);
+
+// Grund-Klassifikation: ohne Netztransparenz-Modul (Standard in diesem Test) nie 'eeg51'.
+t('Grund SP I.1 (unvermarktet, 100 %, keine neg. Preis-Stunde) = none', $GLOBALS['maintained']['AT_SP_I_1_Grund'] === 'none');
+t('Grund SP I.2 (Next auf 0 %, keine neg. Preis-Stunde) = marketer', $GLOBALS['maintained']['AT_SP_I_2_Grund'] === 'marketer');
+
+// Netztransparenz-Modul vorhanden UND meldet eine negative Preis-Stunde -> überstimmt jedes Signal.
+$GLOBALS['ntpInstances'] = [777];
+function NTP_IsNegativePriceHour($id, $ts) { return $id === 777; }
+$hub->RunCycle();
+t('Grund SP I.1 wird bei bestätigter neg. Preis-Stunde zu eeg51 (überstimmt "kein Vermarkter")', $GLOBALS['maintained']['AT_SP_I_1_Grund'] === 'eeg51');
+t('Grund SP I.2 wird bei bestätigter neg. Preis-Stunde zu eeg51 (überstimmt Next-Signal)', $GLOBALS['maintained']['AT_SP_I_2_Grund'] === 'eeg51');
+$GLOBALS['ntpInstances'] = [];
 
 // Stammdaten ändern: Anlagenteil SP I.2 entfernen -> zugehörige Variable muss geprunt werden.
 $GLOBALS['props']['Anlagenteile'] = json_encode([

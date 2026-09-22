@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.0 (22.09.2026)
+
+- `RunCycle()` ruft jetzt `NTP_IsNegativePriceHour()` (aus `DG65/NRGNetztransparenz`,
+  fest bekanntes Verbundmodul, selbst gesuchte Instanz — kein Treiber-Auswahlfeld
+  nötig) und berechnet darüber je Anlagenteil den Grund
+  (`DVHUB_Calc::classifyReason()`), sichtbar als neue String-Variable `AT_<id>_Grund`.
+  Fail-safe `false`, wenn das Modul fehlt/der Aufruf fehlschlägt.
+- Noch nicht enthalten: historisches Wegschreiben (Archiv/Abrechnungsreport) — der
+  Grund ist bisher nur eine Live-Momentaufnahme.
+- 17 Tests in `.tests/hub_test.php` (vorher 11), alle grün — inkl. Nachweis, dass eine
+  bestätigte negative Preis-Stunde sowohl "kein Vermarkter" als auch ein aktives
+  Next-Signal überstimmt.
+
 ## 0.5.0 (22.09.2026)
 
 - `libs/NetztransparenzClient.php` und dessen Tests wieder entfernt — ausgelagert nach

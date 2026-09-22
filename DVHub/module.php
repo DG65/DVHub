@@ -10,9 +10,10 @@ require_once __DIR__ . '/../libs/DVHubCalc.php';
  * über deren Modul-Prefix aufgelöst — DVHub kennt keine konkrete Treiber-Implementierung),
  * rechnet über DVHUB_Calc und schreibt die NAP-Sollwerte zurück.
  *
- * Bewusst noch NICHT enthalten (siehe CLAUDE.md „Nächste Schritte"): Grund-Klassifikation
- * mit Netztransparenz-Anbindung, Archiv, Abrechnungsreport, Fail-safe-Timeout-Logik über
- * den Sofort-Fallback der Treiber hinaus.
+ * Bewusst noch NICHT enthalten (siehe CLAUDE.md „Nächste Schritte"): Archiv/
+ * Abrechnungsreport (die Grund-Klassifikation wird zwar berechnet und live angezeigt,
+ * aber noch nicht historisch weggeschrieben), Fail-safe-Timeout-Logik über den
+ * Sofort-Fallback der Treiber hinaus.
  */
 class DVHub extends IPSModule
 {
@@ -86,6 +87,12 @@ class DVHub extends IPSModule
         $napSetpoints = DVHUB_Calc::napSetpoints($shares);
         $anlagenteilWatts = DVHUB_Calc::anlagenteilWatts($shares);
 
+        $isNegativePriceHour = $this->isNegativePriceHour(time());
+        $reasons = [];
+        foreach ($anlagenteile as $a) {
+            $reasons[$a['id']] = DVHUB_Calc::classifyReason($isNegativePriceHour, $a['curtailmentSignal']);
+        }
+
         $dryRun = $this->ReadPropertyBoolean('DryRun');
         $written = [];
         foreach ($naps as $nap) {
@@ -100,6 +107,7 @@ class DVHub extends IPSModule
         foreach ($anlagenteileRaw as $a) {
             $watts = $anlagenteilWatts[$a['id']] ?? 0.0;
             $this->setMaintainedValue('AT_' . $this->safeIdent($a['id']) . '_Watts', $watts);
+            $this->setMaintainedValue('AT_' . $this->safeIdent($a['id']) . '_Grund', $reasons[$a['id']] ?? 'none');
         }
 
         // Trockenlauf ist der sichere Standard (siehe CLAUDE.md): erst rechnen und zeigen,
@@ -140,6 +148,33 @@ class DVHub extends IPSModule
         }
     }
 
+    /**
+     * Ob die aktuelle Stunde eine amtlich bestätigte negative Preis-Stunde ist (EEG §51),
+     * über das verbundweite Netztransparenz-Modul (`DG65/NRGNetztransparenz`, Prefix
+     * `NTP`). Anders als bei den Treibern ist der Prefix hier fest bekannt (ein
+     * verbundweit einziges, klar definiertes Partnermodul, kein vom Nutzer frei
+     * wählbarer Treiber) — DVHub sucht sich die erste vorhandene Instanz selbst, der
+     * Nutzer muss dafür nichts in den Stammdaten konfigurieren. Fail-safe: `false`,
+     * wenn das Modul fehlt oder der Aufruf fehlschlägt (siehe NRGNetztransparenz-
+     * CLAUDE.md: eine unbestätigte negative-Preis-Behauptung wird nie unterstellt).
+     */
+    private function isNegativePriceHour(int $unixTimestamp): bool
+    {
+        if (!function_exists('NTP_IsNegativePriceHour')) {
+            return false;
+        }
+        $instances = @IPS_GetInstanceListByModuleID('{446D79AD-D546-48AF-AE5C-96D635E2A203}');
+        if (empty($instances)) {
+            return false;
+        }
+        try {
+            return (bool) NTP_IsNegativePriceHour($instances[0], $unixTimestamp);
+        } catch (\Throwable $e) {
+            $this->LogMessage('Netztransparenz-Abfrage fehlgeschlagen: ' . $e->getMessage(), KL_WARNING);
+            return false;
+        }
+    }
+
     private function decodeList(string $property): array
     {
         $decoded = json_decode($this->ReadPropertyString($property), true);
@@ -157,12 +192,13 @@ class DVHub extends IPSModule
         $wanted = [];
         foreach ($this->decodeList('NAPs') as $nap) {
             if (($nap['id'] ?? '') !== '') {
-                $wanted['NAP_' . $this->safeIdent($nap['id']) . '_Setpoint'] = 'NAP-Sollwert ' . $nap['id'];
+                $wanted['NAP_' . $this->safeIdent($nap['id']) . '_Setpoint'] = ['caption' => 'NAP-Sollwert ' . $nap['id'], 'type' => VARIABLETYPE_FLOAT, 'profile' => 'NRG.Watt'];
             }
         }
         foreach ($this->decodeList('Anlagenteile') as $a) {
             if (($a['id'] ?? '') !== '') {
-                $wanted['AT_' . $this->safeIdent($a['id']) . '_Watts'] = 'Sollwert ' . $a['id'];
+                $wanted['AT_' . $this->safeIdent($a['id']) . '_Watts'] = ['caption' => 'Sollwert ' . $a['id'], 'type' => VARIABLETYPE_FLOAT, 'profile' => 'NRG.Watt'];
+                $wanted['AT_' . $this->safeIdent($a['id']) . '_Grund'] = ['caption' => 'Grund ' . $a['id'], 'type' => VARIABLETYPE_STRING, 'profile' => ''];
             }
         }
 
@@ -170,8 +206,8 @@ class DVHub extends IPSModule
         $known = is_array($known) ? $known : [];
 
         $this->ensureSharedWattProfile();
-        foreach ($wanted as $ident => $caption) {
-            $this->MaintainVariable($ident, $caption, VARIABLETYPE_FLOAT, 'NRG.Watt', 0, true);
+        foreach ($wanted as $ident => $def) {
+            $this->MaintainVariable($ident, $def['caption'], $def['type'], $def['profile'], 0, true);
         }
         foreach ($known as $ident) {
             if (!array_key_exists($ident, $wanted)) {
@@ -197,7 +233,7 @@ class DVHub extends IPSModule
         }
     }
 
-    private function setMaintainedValue(string $ident, float $value): void
+    private function setMaintainedValue(string $ident, $value): void
     {
         $id = @$this->GetIDForIdent($ident);
         if ($id > 0) {
