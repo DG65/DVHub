@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 (22.09.2026)
+
+- `libs/NetztransparenzClient.php` und dessen Tests wieder entfernt — ausgelagert nach
+  [DG65/NRGNetztransparenz](https://github.com/DG65/NRGNetztransparenz), einem neuen
+  eigenständigen, verbundweiten Modul. Grund: geteilte API-Ratenbegrenzung (2
+  Anfragen/Sekunde/IP) betrifft mehrere NRG-Stack-Module (DVHub, Szenariorechner,
+  absehbar EMS), nicht nur DVHub — Entscheidung mit Dietmar.
+- DVHub wird künftig `NTP_IsNegativePriceHour()` über `function_exists()` konsumieren,
+  statt einen eigenen Client zu pflegen (noch nicht in `RunCycle()` eingebaut).
+
 ## 0.4.1 (22.09.2026)
 
 - Korrektur nach Live-Verifikation gegen die öffentliche Swagger-UI: `NegativePreise`-

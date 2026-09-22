@@ -27,19 +27,24 @@ Details und Vertragsdefinitionen: [CLAUDE.md](CLAUDE.md).
 
 ## Status
 
-Frühe Entwicklungsphase (0.4.0). Fertig und getestet: der Rechenkern
+Frühe Entwicklungsphase (0.5.0). Fertig und getestet: der Rechenkern
 (`libs/DVHubCalc.php`, `php .tests/calc_test.php`), die beiden ersten Treiber
-`DVHubDriverBlueLog`/`DVHubDriverNext` (`php .tests/driver_test.php`), die
+`DVHubDriverBlueLog`/`DVHubDriverNext` (`php .tests/driver_test.php`) und die
 DVHub-Hauptinstanz mit Stammdaten-Formular und Quotierungs-Durchlauf
-(`php .tests/hub_test.php`), sowie ein Client für die Netztransparenz.de-WebAPI
-(`libs/NetztransparenzClient.php`, `php .tests/netztransparenz_test.php`). Der
-automatische Regeltakt ist standardmäßig deaktiviert, `DryRun` ebenso — ein Lauf muss
-zunächst manuell und ohne Schreibzugriff bestätigt werden. Live an der Solarpark-
-Hofweier-Installation verdrahtet und getestet (Testphase, weiterhin `DryRun=true`).
+(`php .tests/hub_test.php`). Der automatische Regeltakt ist standardmäßig deaktiviert,
+`DryRun` ebenso — ein Lauf muss zunächst manuell und ohne Schreibzugriff bestätigt
+werden. Live an der Solarpark-Hofweier-Installation verdrahtet und getestet (Testphase,
+weiterhin `DryRun=true`).
+
+Die EEG-§51-Negativpreis-Anbindung ist NICHT Teil dieses Repos — sie lebt als
+eigenständiges, verbundweites Modul in [DG65/NRGNetztransparenz](https://github.com/DG65/NRGNetztransparenz)
+(Grund: eine geteilte API-Ratenbegrenzung betrifft mehrere NRG-Stack-Module, nicht nur
+DVHub). DVHub wird sie über `function_exists('NTP_IsNegativePriceHour')` konsumieren,
+sobald in `RunCycle()` eingebaut (noch offen).
 
 Noch nicht gebaut: Grund-Klassifikation/Archiv/Abrechnungsreport in `RunCycle()`,
-Netztransparenz-Zugangsdaten (müssen vom Betreiber selbst beantragt werden) und die
-IPS-Anbindung des Clients, Fail-safe-Timeout-Logik über den Sofort-Fallback hinaus.
+Einbau des `NTP_IsNegativePriceHour()`-Aufrufs, Fail-safe-Timeout-Logik über den
+Sofort-Fallback hinaus.
 
 ## Lizenz
 
