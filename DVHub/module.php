@@ -277,4 +277,141 @@ class DVHub extends IPSModule
             $this->SetValue($ident, $value);
         }
     }
+
+    /**
+     * Live-Formular (statt form.json): dieselben Felder wie zuvor, ergänzt um die
+     * Verbund-Statuszeilen für die automatische Netztransparenz-Anbindung und für die
+     * frei wählbaren Treiber-Instanzen (SUITE.md, 21.09.2026 "Verbund-Verbindungen im
+     * Formular sichtbar machen"). Zeilen werden rekursiv über alle Elemente eingesetzt.
+     */
+    public function GetConfigurationForm()
+    {
+        $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+
+        array_unshift($form['elements'], ['type' => 'Label', 'caption' => 'LINKSTATUS', 'name' => 'LinkNtpStatus']);
+
+        $naps = $this->decodeList('NAPs');
+        $anlagenteile = $this->decodeList('Anlagenteile');
+        $napLines = [];
+        foreach ($naps as $nap) {
+            $napLines[] = ['type' => 'Label', 'caption' => 'LINKSTATUS', 'name' => 'LinkNapDriver_' . $this->safeIdent((string) ($nap['id'] ?? ''))];
+        }
+        $atLines = [];
+        foreach ($anlagenteile as $a) {
+            $atLines[] = ['type' => 'Label', 'caption' => 'LINKSTATUS', 'name' => 'LinkMarketerDriver_' . $this->safeIdent((string) ($a['id'] ?? ''))];
+        }
+        if ($napLines !== [] || $atLines !== []) {
+            $form['elements'][] = [
+                'type'     => 'ExpansionPanel',
+                'caption'  => '🔗  Treiber-Verbindungsstatus',
+                'expanded' => true,
+                'items'    => array_merge($napLines, $atLines),
+            ];
+        }
+
+        foreach ($this->LinkStatusLines($naps, $anlagenteile) as $name => $caption) {
+            $this->SetFormLabelCaption($form['elements'], $name, $caption);
+        }
+
+        return json_encode($form);
+    }
+
+    // Setzt die Beschriftung eines benannten Elements, egal wie tief in
+    // ExpansionPanels/RowLayouts verschachtelt (rekursiv über 'items').
+    private function SetFormLabelCaption(array &$items, string $name, string $caption): bool
+    {
+        foreach ($items as &$item) {
+            if (($item['name'] ?? '') === $name) {
+                $item['caption'] = $caption;
+                // 🔗 = automatisch übernommen -> grün (SUITE.md 21.09.2026), sonst Standardfarbe.
+                $item['color'] = (strpos($caption, '🔗') === 0) ? 0x2E8B3D : -1;
+                return true;
+            }
+            if (isset($item['items']) && is_array($item['items']) && $this->SetFormLabelCaption($item['items'], $name, $caption)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Eine Statuszeile je automatischer Verbindung zu einem Partnermodul bzw. je vom
+     * Nutzer gewählter Treiber-Instanz (✅ verbunden mit Werten, ⚠️ verbunden ohne
+     * Brauchbares, ℹ️ nicht gefunden, ⛔ Pflichtangabe fehlt). Jeder Fremdzugriff hinter
+     * function_exists()/IPS_InstanceExists() — ein kaputter/fehlender Partner darf das
+     * Formular nicht zum Absturz bringen.
+     */
+    private function LinkStatusLines(array $naps, array $anlagenteile): array
+    {
+        $lines = [];
+
+        // Netztransparenz (§51-Erkennung negativer Preisstunden) — fest bekanntes,
+        // verbundweit einziges Partnermodul, keine Nutzerauswahl (siehe isNegativePriceHour()).
+        if (!function_exists('NTP_IsNegativePriceHour')) {
+            $lines['LinkNtpStatus'] = 'ℹ️ Netztransparenz-Modul nicht installiert: negative Preisstunden (§51) werden nie erkannt, die Klassifikation fällt dafür nie auf den entsprechenden Grund.';
+        } else {
+            $instances = @IPS_GetInstanceListByModuleID('{446D79AD-D546-48AF-AE5C-96D635E2A203}') ?: [];
+            if ($instances === []) {
+                $lines['LinkNtpStatus'] = 'ℹ️ Netztransparenz-Modul installiert, aber keine Instanz angelegt: negative Preisstunden (§51) werden nie erkannt.';
+            } else {
+                $id = $instances[0];
+                try {
+                    $isNeg = (bool) NTP_IsNegativePriceHour($id, time());
+                    $lines['LinkNtpStatus'] = '🔗 Netztransparenz: #' . $id . ' („' . @IPS_GetName($id) . '") verbunden, aktuelle Stunde ' . ($isNeg ? 'negativer Preis' : 'kein negativer Preis') . '.';
+                } catch (\Throwable $e) {
+                    $lines['LinkNtpStatus'] = '⚠️ Netztransparenz: #' . $id . ' („' . @IPS_GetName($id) . '") gefunden, aber Abfrage fehlgeschlagen (' . $e->getMessage() . ').';
+                }
+            }
+        }
+
+        // EZA-Regler-Treiber je NAP — vom Nutzer per SelectInstance bewusst gewählt.
+        foreach ($naps as $nap) {
+            $name = 'LinkNapDriver_' . $this->safeIdent((string) ($nap['id'] ?? ''));
+            $driverID = (int) ($nap['ezaDriverInstanceID'] ?? 0);
+            $lines[$name] = $this->DriverStatusLine('NAP ' . ($nap['id'] ?? '?'), $driverID, false);
+        }
+
+        // Direktvermarkter-Treiber je Anlagenteil — 0 ist ein gültiger, bewusster Zustand (kein Vermarkter).
+        foreach ($anlagenteile as $a) {
+            $name = 'LinkMarketerDriver_' . $this->safeIdent((string) ($a['id'] ?? ''));
+            $marketerID = (int) ($a['marketerDriverInstanceID'] ?? 0);
+            $lines[$name] = $this->DriverStatusLine('Anlagenteil ' . ($a['id'] ?? '?'), $marketerID, true);
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Statuszeile für eine einzelne Treiber-Instanz, gestützt auf deren GetDriverState()
+     * (Vertrag: JSON {"connected": bool, ...}, siehe DVHubDriverBlueLog/-Next). $noneIsValid
+     * unterscheidet den EZA-Regler (0 ist Konfigurationslücke, ⛔) vom Direktvermarkter
+     * (0 ist bewusst "kein Vermarkter", ℹ️).
+     */
+    private function DriverStatusLine(string $label, int $driverID, bool $noneIsValid): string
+    {
+        if ($driverID <= 0) {
+            return $noneIsValid
+                ? 'ℹ️ ' . $label . ': kein Direktvermarkter-Treiber zugewiesen — voller Betrieb als Grundannahme.'
+                : '⛔ ' . $label . ': kein EZA-Regler-Treiber zugewiesen — ohne ihn wird hier nichts geregelt/geschrieben.';
+        }
+        if (!IPS_InstanceExists($driverID)) {
+            return '⚠️ ' . $label . ': Treiber-Instanz #' . $driverID . ' eingetragen, aber nicht mehr vorhanden.';
+        }
+        $name = @IPS_GetName($driverID);
+        $moduleID = IPS_GetInstance($driverID)['ModuleInfo']['ModuleID'];
+        $prefix = IPS_GetModule($moduleID)['Prefix'];
+        $fn = $prefix . '_GetDriverState';
+        if (!function_exists($fn)) {
+            return '⚠️ ' . $label . ': Treiber #' . $driverID . ' („' . $name . '") bietet GetDriverState() nicht an.';
+        }
+        try {
+            $state = json_decode((string) call_user_func($fn, $driverID), true);
+        } catch (\Throwable $e) {
+            return '⚠️ ' . $label . ': Treiber #' . $driverID . ' („' . $name . '") — Abfrage fehlgeschlagen (' . $e->getMessage() . ').';
+        }
+        if (!is_array($state) || empty($state['connected'])) {
+            return '⚠️ ' . $label . ': Treiber #' . $driverID . ' („' . $name . '") verbunden, liefert aber gerade nichts Brauchbares (Fail-safe greift).';
+        }
+        return '✅ ' . $label . ': Treiber #' . $driverID . ' („' . $name . '") verbunden.';
+    }
 }
