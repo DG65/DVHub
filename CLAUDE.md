@@ -324,3 +324,9 @@ an für Watts/Grund, aus für Setpoint, bleibt aus nach manuellem Ausschalten + 
 **Noch nicht enthalten:** der eigentliche Abrechnungsreport (Auswertung der archivierten
 Werte je Anlagenteil/Betreiber, Abschnitt 3.8 des Neubau-Konzepts) — das Archiv liefert
 nur die Rohdaten, wertet sie noch nicht aus.
+
+## Branch-Modell
+
+Seit 28.10.2026 wie im übrigen Verbund (Entscheidung vom 27.10.2026, `ems-integration` ist
+abgeschafft): `beta` (Arbeitsbranch, Store-Beta) und `main` (Stable). Änderungen landen auf
+`beta`; `main` wird erst nach Bewährung per Fast-Forward nachgezogen.
